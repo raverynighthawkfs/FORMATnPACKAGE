@@ -315,8 +315,6 @@
   </div>
 
   <script>
-    const { ipcRenderer } = require('electron');
-    
     let inputDirectory = null;
     let outputDirectory = null;
     
@@ -331,7 +329,7 @@
     
     // Select input directory
     selectInputBtn.addEventListener('click', async () => {
-      const directory = await ipcRenderer.invoke('select-directory');
+      const directory = await window.electronAPI.selectDirectory();
       if (directory) {
         inputDirectory = directory;
         inputPath.textContent = directory;
@@ -342,7 +340,7 @@
     
     // Select output directory
     selectOutputBtn.addEventListener('click', async () => {
-      const directory = await ipcRenderer.invoke('select-directory');
+      const directory = await window.electronAPI.selectDirectory();
       if (directory) {
         outputDirectory = directory;
         outputPath.textContent = directory;
@@ -366,7 +364,7 @@
       compressBtn.innerHTML = '<span class="loading"></span> Processing...';
       
       try {
-        const result = await ipcRenderer.invoke('compress-files', inputDirectory, outputDirectory);
+        const result = await window.electronAPI.compressFiles(inputDirectory, outputDirectory);
         
         if (result.error) {
           showError(result.error);
@@ -383,13 +381,16 @@
     });
     
     // Listen for progress updates
-    ipcRenderer.on('compression-progress', (event, message) => {
-      const item = document.createElement('div');
-      item.className = 'progress-item';
-      item.textContent = message;
-      progress.appendChild(item);
-      progress.scrollTop = progress.scrollHeight;
-    });
+    let unsubscribeProgress = null;
+    if (window.electronAPI && window.electronAPI.onCompressionProgress) {
+      unsubscribeProgress = window.electronAPI.onCompressionProgress((message) => {
+        const item = document.createElement('div');
+        item.className = 'progress-item';
+        item.textContent = message;
+        progress.appendChild(item);
+        progress.scrollTop = progress.scrollHeight;
+      });
+    }
     
     function showError(message) {
       errorMsg.textContent = message;
@@ -489,7 +490,7 @@
     // Check Python on startup
     window.addEventListener('DOMContentLoaded', async () => {
       try {
-        const pythonCheck = await ipcRenderer.invoke('check-python');
+        const pythonCheck = await window.electronAPI.checkPython();
         if (!pythonCheck.installed) {
           showError('Python is not installed. Please install Python 3 to use this application.');
         }

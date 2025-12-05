@@ -10,9 +10,9 @@ function createWindow() {
     width: 1200,
     height: 800,
     webPreferences: {
-      nodeIntegration: true,
-      contextIsolation: false,
-      enableRemoteModule: true
+      nodeIntegration: false,
+      contextIsolation: true,
+      preload: path.join(__dirname, 'preload.js')
     },
     icon: path.join(__dirname, 'icon.png')
   });
@@ -58,26 +58,8 @@ ipcMain.handle('compress-files', async (event, inputDir, outputDir) => {
   return new Promise((resolve, reject) => {
     const pythonScript = path.join(__dirname, '..', 'compress.py');
     
-    // Try to find Python executable
-    const pythonCommands = ['python3', 'python'];
-    let pythonExe = null;
-    
-    for (const cmd of pythonCommands) {
-      try {
-        const testProcess = spawn(cmd, ['--version']);
-        testProcess.on('close', (code) => {
-          if (code === 0) {
-            pythonExe = cmd;
-          }
-        });
-      } catch (e) {
-        continue;
-      }
-    }
-    
-    if (!pythonExe) {
-      pythonExe = 'python3'; // Default fallback
-    }
+    // Use python3 as default, will fail gracefully if not available
+    const pythonExe = process.platform === 'win32' ? 'python' : 'python3';
     
     const process = spawn(pythonExe, [pythonScript, inputDir, outputDir]);
     
@@ -129,28 +111,29 @@ ipcMain.handle('compress-files', async (event, inputDir, outputDir) => {
 
 // Check if Python is installed
 ipcMain.handle('check-python', async () => {
-  return new Promise((resolve) => {
-    const pythonCommands = ['python3', 'python'];
-    let found = false;
-    
-    for (const cmd of pythonCommands) {
-      try {
+  const pythonCommands = process.platform === 'win32' ? ['python', 'python3'] : ['python3', 'python'];
+  
+  for (const cmd of pythonCommands) {
+    try {
+      const result = await new Promise((resolve) => {
         const proc = spawn(cmd, ['--version']);
         proc.on('close', (code) => {
-          if (code === 0 && !found) {
-            found = true;
-            resolve({ installed: true, command: cmd });
-          }
+          resolve(code === 0);
         });
-      } catch (e) {
-        continue;
+        proc.on('error', () => {
+          resolve(false);
+        });
+        // Timeout after 2 seconds
+        setTimeout(() => resolve(false), 2000);
+      });
+      
+      if (result) {
+        return { installed: true, command: cmd };
       }
+    } catch (e) {
+      continue;
     }
-    
-    setTimeout(() => {
-      if (!found) {
-        resolve({ installed: false });
-      }
-    }, 2000);
-  });
+  }
+  
+  return { installed: false };
 });

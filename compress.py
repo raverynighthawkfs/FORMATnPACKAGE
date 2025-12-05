@@ -26,8 +26,19 @@ def ensure_dependencies():
     
     if required_packages:
         print(f"Installing missing dependencies: {', '.join(required_packages)}")
-        subprocess.check_call([sys.executable, '-m', 'pip', 'install', '--user'] + required_packages)
-        print("Dependencies installed successfully!")
+        try:
+            # Try without --user first (works in venv)
+            subprocess.check_call([sys.executable, '-m', 'pip', 'install'] + required_packages)
+            print("Dependencies installed successfully!")
+        except subprocess.CalledProcessError:
+            try:
+                # Fallback to --user if global install fails
+                subprocess.check_call([sys.executable, '-m', 'pip', 'install', '--user'] + required_packages)
+                print("Dependencies installed successfully!")
+            except subprocess.CalledProcessError as e:
+                print(f"Warning: Failed to install dependencies: {e}")
+                print("Please install manually: pip install " + " ".join(required_packages))
+                print("Continuing without Zstandard compression...")
 
 def check_7z_available():
     """Check if 7z is available on PATH."""
