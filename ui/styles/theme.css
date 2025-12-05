@@ -1,0 +1,49 @@
+:root{
+  /* Material 3 baseline color tokens (customize as needed) */
+  --md-sys-color-primary:#6750A4;
+  --md-sys-color-on-primary:#FFFFFF;
+  --md-sys-color-primary-container:#EADDFF;
+  --md-sys-color-on-primary-container:#21005D;
+
+  --md-sys-color-secondary:#625B71;
+  --md-sys-color-on-secondary:#FFFFFF;
+  --md-sys-color-secondary-container:#E8DEF8;
+  --md-sys-color-on-secondary-container:#1D192B;
+
+  --md-sys-color-tertiary:#7D5260;
+  --md-sys-color-on-tertiary:#FFFFFF;
+  --md-sys-color-tertiary-container:#FFD8E4;
+  --md-sys-color-on-tertiary-container:#31111D;
+
+  --md-sys-color-error:#B3261E;
+  --md-sys-color-on-error:#FFFFFF;
+  --md-sys-color-background:#FFFBFE;
+  --md-sys-color-on-background:#1C1B1F;
+  --md-sys-color-surface:#FFFBFE;
+  --md-sys-color-on-surface:#1C1B1F;
+  --md-sys-color-outline:#79747E;
+
+  /* Typography */
+  --md-ref-typeface-plain: Roboto, system-ui, -apple-system, Segoe UI, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+  --md-sys-typescale-body-medium-size: 0.95rem;
+  --md-sys-typescale-title-medium-size: 1.05rem;
+
+  /* Density */
+  --md-sys-state-layer-opacity-hover: .08;
+  --md-sys-state-layer-opacity-pressed: .12;
+}
+
+html,body{ height:100%; }
+body{
+  margin:0; padding:0; color:var(--md-sys-color-on-background);
+  background:var(--md-sys-color-background);
+  font-family: var(--md-ref-typeface-plain);
+}
+
+/* Example theming for Material Web */
+:root{
+  --md-filled-button-container-color: var(--md-sys-color-primary);
+  --md-filled-button-label-text-color: var(--md-sys-color-on-primary);
+  --md-filled-text-field-container-color: var(--md-sys-color-surface);
+  --md-filled-text-field-input-text-color: var(--md-sys-color-on-surface);
+}
