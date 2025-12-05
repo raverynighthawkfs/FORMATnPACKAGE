@@ -35,7 +35,7 @@ class CompressionBackbone:
             str: Path to the compressed file
         """
         if format not in self.supported_formats:
-            raise ValueError(f"Unsupported format: {format}. Use {self.supported_formats}")
+            raise ValueError(f"Unsupported format: {format}. Supported formats: {', '.join(self.supported_formats)}")
         
         input_file = Path(input_path)
         if not input_file.exists():
