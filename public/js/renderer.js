@@ -11,6 +11,9 @@ const progressFill = document.getElementById('progress-fill');
 const statusText = document.getElementById('status-text');
 const fileList = document.getElementById('file-list');
 
+// Constants
+const UI_UPDATE_BATCH_SIZE = 10; // Update UI every N files for better performance
+
 // State
 let selectedDirectory = null;
 let outputDirectory = null;
@@ -163,7 +166,7 @@ async function processFiles() {
         updateProgress(50 + (50 * (i + 1) / files.length));
         
         // Small delay for UI updates
-        if (i % 10 === 0) {
+        if (i % UI_UPDATE_BATCH_SIZE === 0) {
           await new Promise(resolve => setTimeout(resolve, 50));
         }
       }

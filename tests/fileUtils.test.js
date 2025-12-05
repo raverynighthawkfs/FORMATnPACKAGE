@@ -22,9 +22,9 @@ console.log('✓ getFileCategory tests passed\n');
 // Test formatFileSize
 console.log('Test 2: formatFileSize');
 assert.strictEqual(formatFileSize(0), '0 Bytes', 'Zero bytes');
-assert.strictEqual(formatFileSize(1024), '1 KB', '1 KB');
-assert.strictEqual(formatFileSize(1048576), '1 MB', '1 MB');
-assert.strictEqual(formatFileSize(1073741824), '1 GB', '1 GB');
+assert.strictEqual(formatFileSize(1024), '1.00 KB', '1 KB');
+assert.strictEqual(formatFileSize(1048576), '1.00 MB', '1 MB');
+assert.strictEqual(formatFileSize(1073741824), '1.00 GB', '1 GB');
 console.log('✓ formatFileSize tests passed\n');
 
 // Test groupFilesByCategory
