@@ -1,0 +1,15 @@
+{
+  "name": "formatnpackage",
+  "version": "1.0.0",
+  "description": "A Mac/PC NodeJS App that sorts, optimizes and packages files based on format/type then saves on a server, drive or folder. Weight Loss for your Mom and Your Code!",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "archiver": "^7.0.1"
+  }
+}
