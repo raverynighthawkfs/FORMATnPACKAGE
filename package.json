@@ -1,0 +1,21 @@
+{
+  "name": "formatnpackage",
+  "version": "1.0.0",
+  "description": "A Mac/PC NodeJS App that sorts, optimizes and packages files based on format/type then saves on a server, drive or folder. Weight Loss for your Mom and Your Code!",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": ["file-organizer", "file-optimization", "electron", "nodejs"],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "electron": "^28.0.0"
+  },
+  "dependencies": {
+    "fs-extra": "^11.2.0",
+    "mime-types": "^2.1.35"
+  }
+}
