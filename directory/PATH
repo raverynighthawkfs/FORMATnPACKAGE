@@ -1,0 +1,11 @@
+// Extensions that usually compress WELL in archives
+const COMPRESSIBLE_EXT = new Set([
+  ".tif", ".tiff", ".vrt", ".dem", ".asc",
+  ".csv", ".txt", ".json", ".xml", ".ini",
+  ".cfg", ".log",
+  ".js", ".ts", ".py", ".ps1", ".bat", ".sh", ".md",
+  ".yaml", ".yml",
+  ".psd", ".psb" // these are often compressible too
+]);
+
+module.exports = { COMPRESSIBLE_EXT };
