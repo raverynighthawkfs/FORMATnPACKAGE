@@ -5,7 +5,8 @@
   "main": "src/main.js",
   "scripts": {
     "start": "electron .",
-    "test": "echo \"No tests specified yet\" && exit 0"
+    "test": "echo \"No tests specified yet\" && exit 0",
+    "compress-cli": "python3 compress.py"
   },
   "keywords": [
     "compression",
