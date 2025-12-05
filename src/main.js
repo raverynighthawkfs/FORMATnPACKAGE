@@ -9,9 +9,9 @@ function createWindow() {
     width: 1200,
     height: 800,
     webPreferences: {
-      nodeIntegration: true,
-      contextIsolation: false,
-      enableRemoteModule: true
+      nodeIntegration: false,
+      contextIsolation: true,
+      preload: path.join(__dirname, 'preload.js')
     },
     icon: path.join(__dirname, '../public/images/icon.png')
   });
@@ -51,7 +51,31 @@ ipcMain.handle('select-directory', async (event) => {
   return result.filePaths;
 });
 
-ipcMain.handle('process-files', async (event, directory) => {
-  // Placeholder for file processing logic
-  return { success: true, message: 'Processing complete' };
+ipcMain.handle('get-files', async (event, directory) => {
+  const { getAllFiles } = require('./utils/fileUtils');
+  try {
+    const files = await getAllFiles(directory);
+    return { success: true, files };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('process-files', async (event, directory, options) => {
+  const { getAllFiles, groupFilesByCategory } = require('./utils/fileUtils');
+  try {
+    const files = await getAllFiles(directory);
+    const grouped = groupFilesByCategory(files);
+    
+    // Here we would integrate with Python scripts for actual processing
+    // For now, return the categorized files
+    return { 
+      success: true, 
+      message: 'Processing complete',
+      filesProcessed: files.length,
+      categories: Object.keys(grouped)
+    };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
 });

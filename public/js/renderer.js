@@ -1,8 +1,3 @@
-const { ipcRenderer } = require('electron');
-const fs = require('fs-extra');
-const path = require('path');
-const mime = require('mime-types');
-
 // DOM Elements
 const selectDirBtn = document.getElementById('select-dir-btn');
 const selectedPath = document.getElementById('selected-path');
@@ -24,7 +19,7 @@ let isProcessing = false;
 // Event Listeners
 selectDirBtn.addEventListener('click', async () => {
   try {
-    const paths = await ipcRenderer.invoke('select-directory');
+    const paths = await window.electron.selectDirectory();
     if (paths && paths.length > 0) {
       selectedDirectory = paths[0];
       selectedPath.textContent = selectedDirectory;
@@ -38,7 +33,7 @@ selectDirBtn.addEventListener('click', async () => {
 
 selectOutputBtn.addEventListener('click', async () => {
   try {
-    const paths = await ipcRenderer.invoke('select-directory');
+    const paths = await window.electron.selectDirectory();
     if (paths && paths.length > 0) {
       outputDirectory = paths[0];
       outputPath.textContent = `Output: ${outputDirectory}`;
@@ -135,71 +130,55 @@ async function processFiles() {
       optimizeImages: document.getElementById('optimize-images').checked,
       compressFiles: document.getElementById('compress-files').checked,
       createSubfolders: document.getElementById('create-subfolders').checked,
-      preserveStructure: document.getElementById('preserve-structure').checked
+      preserveStructure: document.getElementById('preserve-structure').checked,
+      filters: filters
     };
 
     updateProgress(30);
     updateStatus('Processing files...');
 
-    // Get all files in directory
-    const files = await getAllFiles(selectedDirectory);
+    // Get all files in directory using IPC
+    const result = await window.electron.getFiles(selectedDirectory);
     
     updateProgress(50);
     
-    if (files.length === 0) {
+    if (!result.success || result.files.length === 0) {
       updateStatus('No files found in directory', 'error');
       return;
     }
 
+    const files = result.files;
     updateStatus(`Found ${files.length} files. Processing...`);
     
-    // Process each file
-    for (let i = 0; i < files.length; i++) {
-      if (!isProcessing) break;
-      
-      const file = files[i];
-      const fileName = path.basename(file);
-      
-      try {
-        // Simulate processing
-        await new Promise(resolve => setTimeout(resolve, 100));
-        addFileToList(fileName, 'success');
+    // Process files using the backend
+    const processResult = await window.electron.processFiles(selectedDirectory, options);
+    
+    if (processResult.success) {
+      // Display processed files
+      for (let i = 0; i < files.length; i++) {
+        if (!isProcessing) break;
+        
+        const file = files[i];
+        addFileToList(file.name, 'success');
         updateProgress(50 + (50 * (i + 1) / files.length));
-      } catch (error) {
-        addFileToList(fileName, 'error');
+        
+        // Small delay for UI updates
+        if (i % 10 === 0) {
+          await new Promise(resolve => setTimeout(resolve, 50));
+        }
       }
-    }
 
-    if (isProcessing) {
-      updateProgress(100);
-      updateStatus(`Successfully processed ${files.length} files`, 'success');
+      if (isProcessing) {
+        updateProgress(100);
+        updateStatus(`Successfully processed ${files.length} files`, 'success');
+      }
+    } else {
+      updateStatus(`Error: ${processResult.error}`, 'error');
     }
     
   } catch (error) {
     console.error('Error processing files:', error);
     updateStatus('Error processing files: ' + error.message, 'error');
-  }
-}
-
-async function getAllFiles(dirPath, arrayOfFiles = []) {
-  try {
-    const files = await fs.readdir(dirPath);
-
-    for (const file of files) {
-      const filePath = path.join(dirPath, file);
-      const stat = await fs.stat(filePath);
-
-      if (stat.isDirectory()) {
-        arrayOfFiles = await getAllFiles(filePath, arrayOfFiles);
-      } else {
-        arrayOfFiles.push(filePath);
-      }
-    }
-
-    return arrayOfFiles;
-  } catch (error) {
-    console.error('Error reading directory:', error);
-    return arrayOfFiles;
   }
 }
 

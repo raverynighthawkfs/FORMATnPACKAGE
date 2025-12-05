@@ -34,7 +34,7 @@ def optimize_image(image_path, output_path=None, quality=85):
         img = Image.open(image_path)
         
         # Convert RGBA to RGB if saving as JPEG
-        if img.mode == 'RGBA' and output_path.lower().endswith('.jpg'):
+        if img.mode == 'RGBA' and output_path.lower().endswith(('.jpg', '.jpeg')):
             img = img.convert('RGB')
         
         # Optimize and save
