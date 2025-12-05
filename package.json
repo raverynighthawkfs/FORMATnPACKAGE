@@ -1,0 +1,27 @@
+{
+  "name": "formatnpackage",
+  "version": "1.0.0",
+  "description": "A Mac/PC NodeJS App that sorts, optimizes and packages files based on format/type",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "electron .",
+    "test": "echo \"No tests specified yet\" && exit 0"
+  },
+  "keywords": [
+    "compression",
+    "optimization",
+    "file-management"
+  ],
+  "author": "",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "electron": "^27.0.0",
+    "@mui/material": "^5.14.0",
+    "@mui/icons-material": "^5.14.0",
+    "@emotion/react": "^11.11.0",
+    "@emotion/styled": "^11.11.0"
+  },
+  "devDependencies": {
+    "electron-builder": "^24.6.0"
+  }
+}
