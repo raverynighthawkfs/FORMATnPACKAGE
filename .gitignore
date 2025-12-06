@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+.venv/
+venv/
+
+# Tool outputs
+_compression_test/
+report.json
+report.csv
+
+# OS / editors
+.DS_Store
+Thumbs.db
+*.swp
+
+# Node/Electron (avoid committing vendored deps)
+node_modules/
+electron-builder.yml
+/dist/
+/tmp/
