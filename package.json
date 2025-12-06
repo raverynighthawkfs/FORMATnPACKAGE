@@ -4,8 +4,16 @@
   "description": "A Mac/PC NodeJS App that sorts, optimizes and packages files based on format/type then saves on a server, drive or folder. Weight Loss for your Mom and Your Code!\r # READ WARP.md",
   "main": "repack_by_type.js",
   "scripts": {
+    "start": "electron .",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
+  "devDependencies": {
+    "electron": "^26.0.0"
+  },
+  "dependencies": {
+    "archiver": "^5.3.1"
+  },
+  "main": "electron/main.js",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/raverynighthawkfs/FORMATnPACKAGE.git"
