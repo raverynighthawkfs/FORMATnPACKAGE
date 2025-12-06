@@ -57,6 +57,10 @@
           <span class="material-symbols-outlined" slot="icon">search</span>
           Scan
         </md-filled-button>
+        <md-filled-button id="chooseFolderBtn" appearance="outlined">
+          <span class="material-symbols-outlined" slot="icon">folder_open</span>
+          Choose folder
+        </md-filled-button>
         <md-filled-button id="runBtn">
           <span class="material-symbols-outlined" slot="icon">play_arrow</span>
           Run
@@ -65,6 +69,14 @@
           <span class="material-symbols-outlined" slot="icon">refresh</span>
           Clear
         </md-filled-button>
+        <label style="display:flex; align-items:center; gap:.25rem; margin-left:8px; white-space:nowrap;">
+          <input type="checkbox" id="rememberFolder" />
+          <small>Remember folder</small>
+        </label>
+        <div id="savedFolderArea" style="display:none; margin-left:8px; align-items:center; gap:.5rem;">
+          <div id="savedFolderLabel" style="font-size:0.85rem; opacity:0.9"></div>
+          <md-filled-button id="clearSavedBtn" appearance="outlined">Forget</md-filled-button>
+        </div>
         <div id="spinner" class="spinner hidden" title="Scanning"></div>
       </div>
 
@@ -75,6 +87,10 @@
           </div>
           <div id="progressText">0 / 0</div>
         </div>
+      </div>
+      <div id="compressionSummary" style="margin-top:.75rem; display:none;">
+        <strong>Estimated packaging:</strong>
+        <div id="estText" style="font-size:.95rem; margin-top:.25rem"></div>
       </div>
     </section>
 
@@ -108,6 +124,7 @@
 
     const folderPicker = document.getElementById('folderPicker');
     const scanBtn = document.getElementById('scanBtn');
+    const chooseFolderBtn = document.getElementById('chooseFolderBtn');
     const runBtn = document.getElementById('runBtn');
     const clearBtn = document.getElementById('clearBtn');
     const spinner = document.getElementById('spinner');
@@ -118,6 +135,12 @@
     const topFiles = document.getElementById('topFiles');
 
     let lastScan = null;
+    const rememberFolder = document.getElementById('rememberFolder');
+    const savedFolderArea = document.getElementById('savedFolderArea');
+    const savedFolderLabel = document.getElementById('savedFolderLabel');
+    const clearSavedBtn = document.getElementById('clearSavedBtn');
+    const compressionSummary = document.getElementById('compressionSummary');
+    const estText = document.getElementById('estText');
 
     function setSpinner(show){
       spinner.classList.toggle('hidden', !show);
@@ -129,12 +152,151 @@
       progressText.textContent = `${done} / ${total}`;
     }
 
-    scanBtn.addEventListener('click', ()=>{
-      if(!folderPicker.files.length){
+    // File System Access API helpers + IndexedDB persistence helpers
+    const DB_NAME = 'FORMATnPACKAGE_handles_v1';
+    function openDB(){
+      return new Promise((resolve, reject)=>{
+        const r = indexedDB.open(DB_NAME, 1);
+        r.onupgradeneeded = ()=>{
+          const db = r.result;
+          if(!db.objectStoreNames.contains('handles')) db.createObjectStore('handles');
+        };
+        r.onsuccess = ()=>resolve(r.result);
+        r.onerror = ()=>reject(r.error);
+      });
+    }
+    async function putHandle(key, handle){
+      const db = await openDB();
+      return new Promise((res, rej)=>{
+        const tx = db.transaction('handles','readwrite');
+        tx.objectStore('handles').put(handle, key);
+        tx.oncomplete = ()=>res();
+        tx.onerror = ()=>rej(tx.error);
+      });
+    }
+    async function getHandle(key){
+      const db = await openDB();
+      return new Promise((res, rej)=>{
+        const tx = db.transaction('handles','readonly');
+        const req = tx.objectStore('handles').get(key);
+        req.onsuccess = ()=>res(req.result);
+        req.onerror = ()=>rej(req.error);
+      });
+    }
+    async function removeHandle(key){
+      const db = await openDB();
+      return new Promise((res, rej)=>{
+        const tx = db.transaction('handles','readwrite');
+        tx.objectStore('handles').delete(key);
+        tx.oncomplete = ()=>res();
+        tx.onerror = ()=>rej(tx.error);
+      });
+    }
+
+    async function traverseDirHandle(dirHandle){
+      const files = [];
+      async function traverse(handle){
+        for await (const entry of handle.values()){
+          if(entry.kind === 'file'){
+            try{ files.push(await entry.getFile()); }catch(e){}
+          } else if(entry.kind === 'directory'){
+            await traverse(entry);
+          }
+        }
+      }
+      await traverse(dirHandle);
+      return files;
+    }
+
+    async function useStoredHandleIfAvailable(){
+      try{
+        const stored = await getHandle('dir');
+        if(stored){
+          // ask for permission if needed
+          if(typeof stored.requestPermission === 'function'){
+            const perm = await stored.requestPermission({mode:'read'});
+            if(perm === 'granted'){
+              const files = await traverseDirHandle(stored);
+              return {handle: stored, files};
+            }
+          } else {
+            // try to iterate (some browsers auto-grant)
+            const files = await traverseDirHandle(stored);
+            return {handle: stored, files};
+          }
+        }
+      }catch(e){ console.warn('No stored handle available or permission denied', e); }
+      return null;
+    }
+
+    // Choose folder button — explicit picking
+    chooseFolderBtn.addEventListener('click', async ()=>{
+      if(!window.showDirectoryPicker){
+        alert('Directory picker is not supported in this browser. Use the folder picker input.');
         folderPicker.click();
         return;
       }
+      try{
+        const dirHandle = await window.showDirectoryPicker();
+        const files = await traverseDirHandle(dirHandle);
+        if(rememberFolder.checked){
+          try{ await putHandle('dir', dirHandle); savedFolderArea.style.display='flex'; savedFolderLabel.textContent = dirHandle.name; }catch(e){ console.warn('Storing handle failed', e); }
+        }
+        startScan(files);
+      }catch(e){ console.warn('Directory pick cancelled', e); }
+    });
+
+    // Load stored handle on startup
+    (async ()=>{
+      try{
+        const s = await useStoredHandleIfAvailable();
+        if(s){
+          savedFolderArea.style.display='flex';
+          savedFolderLabel.textContent = s.handle.name || 'Saved folder';
+          rememberFolder.checked = true;
+        }
+      }catch(e){}
+    })();
+
+    // Try to use the File System Access API to pick a directory (better UX)
+    // Fallback: use the hidden file input with webkitdirectory
+    scanBtn.addEventListener('click', async ()=>{
+      // If we have a stored handle and user wants it, try to use it
+      const stored = await getHandle('dir').catch(()=>null);
+      if(stored){
+        try{
+          const perm = stored.queryPermission ? await stored.queryPermission({mode:'read'}) : 'prompt';
+          if(perm === 'granted' || (perm === 'prompt' && (await stored.requestPermission({mode:'read'}) === 'granted'))){
+            const files = await traverseDirHandle(stored);
+            if(files.length) return startScan(files);
+          }
+        }catch(e){ console.warn('Stored handle failed; falling back', e); }
+      }
+
+      if(window.showDirectoryPicker){
+        try{
+          const dirHandle = await window.showDirectoryPicker();
+          const files = await traverseDirHandle(dirHandle);
+          if(rememberFolder.checked){ try{ await putHandle('dir', dirHandle); savedFolderArea.style.display='flex'; savedFolderLabel.textContent = dirHandle.name; }catch(e){ console.warn('Storing handle failed', e); } }
+          if(!files.length){ alert('No files found in chosen folder.'); return; }
+          startScan(files);
+          return;
+        }catch(err){
+          console.warn('Directory pick cancelled or failed, falling back to file input', err);
+        }
+      }
+
+      // fallback behavior (existing): open file picker if no files already selected
+      if(!folderPicker.files.length){ folderPicker.click(); return; }
       startScan(Array.from(folderPicker.files));
+    });
+
+    clearSavedBtn.addEventListener('click', async ()=>{
+      await removeHandle('dir').catch(()=>{});
+      savedFolderArea.style.display='none';
+      rememberFolder.checked = false;
+      savedFolderLabel.textContent = '';
+      alert('Saved folder cleared.');
     });
 
     folderPicker.addEventListener('change', ()=>{
@@ -211,11 +373,30 @@
       const typeCounts = typeLabels.map(k=>extMap.get(k).count);
       const typeBytes = typeLabels.map(k=>extMap.get(k).bytes);
 
+      // compute estimated compressed bytes (simple heuristic per extension)
+      function estimateCompressedBytes(fileInfos){
+        const ratioByExt = {
+          '.png': 0.6, '.jpg': 0.95, '.jpeg': 0.95, '.tif':0.6, '.tiff':0.6,
+          '.json':0.3, '.txt':0.25, '.csv':0.25, '.xml':0.3
+        };
+        const byExt = new Map();
+        for(const f of fileInfos){
+          const r = ratioByExt[f.ext] ?? 0.7;
+          const comp = Math.round(f.size * r);
+          const prev = byExt.get(f.ext) || {orig:0, comp:0, count:0};
+          prev.orig += f.size; prev.comp += comp; prev.count += 1;
+          byExt.set(f.ext, prev);
+        }
+        return {byExt, totalOrig: fileInfos.reduce((s,f)=>s+f.size,0), totalComp: fileInfos.reduce((s,f)=>s+Math.round(f.size * (ratioByExt[f.ext]??0.7)),0)};
+      }
+
+      const est = estimateCompressedBytes(fileInfos);
+
       // top files by size
       fileInfos.sort((a,b)=>b.size-a.size);
       const topN = fileInfos.slice(0,10);
 
-      renderCharts(typeLabels, typeCounts, typeBytes, totalBytes);
+      renderCharts(typeLabels, typeCounts, typeBytes, totalBytes, est);
 
       // populate topFiles list
       topFiles.innerHTML = '';
@@ -226,12 +407,20 @@
         topFiles.appendChild(li);
       }
 
+      // show compression summary
+      if(est && est.totalOrig !== undefined){
+        compressionSummary.style.display = '';
+        const saved = est.totalOrig - est.totalComp;
+        const pct = est.totalOrig? Math.round((saved/est.totalOrig)*100):0;
+        estText.textContent = `${fmtBytes(est.totalOrig)} → ${fmtBytes(est.totalComp)} (saved ${fmtBytes(saved)} — ${pct}%)`;
+      }
+
       resultsSection.style.display = '';
       lastScan = {extMap, totalBytes, fileInfos};
     }
 
     let typeChart=null, sizeChart=null;
-    function renderCharts(labels, counts, bytesArr, totalBytes){
+    function renderCharts(labels, counts, bytesArr, totalBytes, est){
       const ctx1 = document.getElementById('typeChart').getContext('2d');
       const ctx2 = document.getElementById('sizeChart').getContext('2d');
       if(typeChart) typeChart.destroy();
@@ -250,17 +439,33 @@
         options: {plugins:{legend:{position:'right'}}}
       });
 
+      // prepare pre/post compression datasets if estimate provided
+      const preData = bytesArr.map(b=>b/1024/1024);
+      let compData = null;
+      if(est && est.byExt){
+        compData = labels.map(l=>{
+          const v = est.byExt.get(l);
+          return v? (v.comp/1024/1024) : 0;
+        });
+      }
+
+      const datasets = [{
+        label: 'Original (MB)',
+        data: preData,
+        backgroundColor: labels.map((_,i)=>`hsl(${(i*47)%360} 60% 45%)`)
+      }];
+      if(compData){
+        datasets.push({
+          label: 'Estimated Compressed (MB)',
+          data: compData,
+          backgroundColor: labels.map((_,i)=>`hsl(${(i*47)%360} 80% 75%)`)
+        });
+      }
+
       sizeChart = new Chart(ctx2, {
         type: 'bar',
-        data: {
-          labels: labels,
-          datasets: [{
-            label: 'Bytes',
-            data: bytesArr.map(b=>b/1024/1024),
-            backgroundColor: labels.map((_,i)=>`hsl(${(i*47)%360} 60% 45%)`)
-          }]
-        },
-        options: {scales:{y:{title:{display:true,text:'MB'}}}, plugins:{legend:{display:false}}}
+        data: { labels: labels, datasets },
+        options: {scales:{y:{title:{display:true,text:'MB'}}}, plugins:{legend:{position:'right'}}}
       });
     }
   </script>
