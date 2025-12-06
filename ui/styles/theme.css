@@ -47,34 +47,33 @@ body{
   --md-filled-text-field-container-color: var(--md-sys-color-surface);
   --md-filled-text-field-input-text-color: var(--md-sys-color-on-surface);
 }
-
 /* Dark theme overrides when body has .dark */
 body.dark{
-  --md-sys-color-primary: #8b5cf6;
-  --md-sys-color-on-primary: #0f172a;
-  --md-sys-color-primary-container: #2a1a54;
+  --md-sys-color-primary: #4450a2;
+  --md-sys-color-on-primary: #e6eef8;
+  --md-sys-color-primary-container: #1a2138;
   --md-sys-color-on-primary-container: #e9ddff;
 
-  --md-sys-color-secondary: #9aa0b4;
-  --md-sys-color-on-secondary: #0f172a;
-  --md-sys-color-secondary-container: #2b2f3a;
+  --md-sys-color-secondary: #6b7388;
+  --md-sys-color-on-secondary: #e6eef8;
+  --md-sys-color-secondary-container: #101420;
   --md-sys-color-on-secondary-container: #eef2ff;
 
-  --md-sys-color-tertiary: #d6a4b6;
-  --md-sys-color-on-tertiary: #0f172a;
-  --md-sys-color-tertiary-container: #3a2a30;
+  --md-sys-color-tertiary: #9aa4b2;
+  --md-sys-color-on-tertiary: #e6eef8;
+  --md-sys-color-tertiary-container: #141826;
   --md-sys-color-on-tertiary-container: #fff0f6;
 
-  --md-sys-color-error:#ffb4ab;
-  --md-sys-color-on-error:#410001;
-  --md-sys-color-background:#0b0f16;
+  --md-sys-color-error:#ff8b8b;
+  --md-sys-color-on-error:#2b0000;
+  --md-sys-color-background:#071021; /* deep navy */
   --md-sys-color-on-background:#e6eef8;
-  --md-sys-color-surface:#071029;
-  --md-sys-color-on-surface:#e6eef8;
-  --md-sys-color-outline: rgba(255,255,255,0.08);
+  --md-sys-color-surface:#0b1420; /* card background */
+  --md-sys-color-on-surface:#dbe8ff;
+  --md-sys-color-outline: rgba(255,255,255,0.06);
 
-  --md-filled-button-container-color: var(--md-sys-color-primary);
-  --md-filled-button-label-text-color: var(--md-sys-color-on-primary);
+  --md-filled-button-container-color: #2b3a70;
+  --md-filled-button-label-text-color: #e6eef8;
   --md-filled-text-field-container-color: var(--md-sys-color-surface);
   --md-filled-text-field-input-text-color: var(--md-sys-color-on-surface);
 }

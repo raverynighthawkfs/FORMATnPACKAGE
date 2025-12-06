@@ -9,12 +9,38 @@
 /* Instructions block */
 .instructions{ margin: 0 auto 1rem; max-width:1100px; padding:0 1rem; }
 .instructions .note{ background:var(--md-sys-color-surface); color:var(--md-sys-color-on-surface); border:1px solid var(--md-sys-color-outline); border-radius:10px; padding:.75rem 1rem; font-size:.95rem; }
+/* ensure top note isn't flush with sticky app-bar */
+.instructions{ margin-top:0.9rem; }
 
 /* Make sections stack with consistent vertical spacing on small screens */
 @media (max-width:640px){
 	.container{ margin:0.75rem 0; }
 	.section{ padding:.9rem; }
 }
+
+/* Mobile bottom toolbar (icons only) */
+.mobile-toolbar{ display:none; }
+@media (max-width:720px){
+	.mobile-toolbar{ display:flex; position:fixed; left:0; right:0; bottom:0; height:56px; background:var(--md-sys-color-surface); border-top:1px solid var(--md-sys-color-outline); padding:6px 8px; gap:8px; justify-content:space-around; align-items:center; z-index:60; }
+	.mobile-toolbar button, .mobile-toolbar md-filled-button{ background:transparent; border-radius:8px; color:var(--md-sys-color-on-surface); }
+	body{ padding-bottom:66px; }
+	/* compact app bar on small screens */
+	.app-bar{ padding:.5rem .5rem; }
+}
+
+/* Saved folders box */
+.saved-folders{ margin-top:0.75rem; display:flex; gap:.5rem; flex-direction:column; }
+.saved-folders .pill{ display:flex; align-items:center; justify-content:space-between; gap:.5rem; padding:.5rem .75rem; background:transparent; border:1px solid var(--md-sys-color-outline); border-radius:999px; color:var(--md-sys-color-on-surface); font-size:.95rem; }
+.saved-folders .pill button{ background:transparent; border:none; color:var(--md-sys-color-on-surface); opacity:0.85; cursor:pointer; }
+
+/* Saved scans section */
+.scans-grid{ display:grid; grid-template-columns: repeat(auto-fit,minmax(220px,1fr)); gap:1rem; margin-top:1rem; }
+.scan-card{ background:var(--md-sys-color-surface); border:1px solid var(--md-sys-color-outline); padding:.75rem; border-radius:10px; display:flex; flex-direction:column; gap:.5rem; }
+.scan-card .meta{ display:flex; justify-content:space-between; align-items:center; }
+.scan-card .meta .name{ font-weight:600; }
+.scan-card .meta .small{ font-size:.85rem; opacity:0.85; }
+.scan-card .stats{ display:flex; gap:.5rem; justify-content:space-between; font-size:.9rem; }
+.scan-actions{ display:flex; gap:.5rem; justify-content:flex-end; }
 
 /* Spinner and progress styles for scanner */
 .spinner{ width:28px; height:28px; border-radius:50%; border:4px solid rgba(255,255,255,0.08); border-top-color:var(--md-sys-color-primary); box-sizing:border-box; animation:spin 1s linear infinite; }

@@ -29,6 +29,9 @@
 </head>
 <body>
   <header class="app-bar">
+    <md-filled-icon-button id="menuBtn" appearance="outlined" title="Menu">
+      <span class="material-symbols-outlined" slot="icon">menu</span>
+    </md-filled-icon-button>
     <span class="material-symbols-outlined">inventory_2</span>
     <div class="app-title">FORMATnPACKAGE</div>
     <div style="flex:1"></div>
@@ -86,6 +89,9 @@
           <div id="savedFolderLabel" style="font-size:0.85rem; opacity:0.9"></div>
           <md-filled-button id="clearSavedBtn" appearance="outlined">Forget</md-filled-button>
         </div>
+        <div id="savedFoldersBox" style="margin-left:8px;">
+          <!-- saved folders list will be rendered here -->
+        </div>
         <div id="spinner" class="spinner hidden" title="Scanning"></div>
       </div>
 
@@ -101,6 +107,7 @@
         <strong>Estimated packaging:</strong>
         <div id="estText" style="font-size:.95rem; margin-top:.25rem"></div>
       </div>
+      <div class="saved-folders" id="savedFoldersList" style="display:none;"></div>
     </section>
 
     <section class="section" id="resultsSection" style="display:none;">
@@ -118,8 +125,25 @@
       <md-list id="topFiles"></md-list>
     </section>
 
+    <section class="section" id="scansSection">
+      <h3>Saved Scans</h3>
+      <div id="scansGrid" class="scans-grid"></div>
+      <div style="margin-top:.75rem; display:flex; justify-content:flex-end; gap:.5rem;">
+        <md-filled-button id="clearAllScans" appearance="outlined">Clear All Scans</md-filled-button>
+      </div>
+    </section>
+
     <div class="footer">This preview scans a selected folder in-browser (no server). Use the folder picker to choose files.</div>
   </main>
+
+  <!-- Mobile bottom toolbar -->
+  <div class="mobile-toolbar" id="mobileToolbar" aria-hidden="false">
+    <button id="mobileScanBtn" title="Scan" aria-label="Scan"><span class="material-symbols-outlined">search</span></button>
+    <button id="mobileChooseBtn" title="Choose folder" aria-label="Choose folder"><span class="material-symbols-outlined">folder_open</span></button>
+    <button id="mobileRunBtn" title="Run" aria-label="Run"><span class="material-symbols-outlined">play_arrow</span></button>
+    <button id="mobileClearBtn" title="Clear" aria-label="Clear"><span class="material-symbols-outlined">refresh</span></button>
+    <button id="mobileThemeBtn" title="Toggle theme" aria-label="Toggle theme"><span class="material-symbols-outlined">dark_mode</span></button>
+  </div>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script>
@@ -165,10 +189,12 @@
     const DB_NAME = 'FORMATnPACKAGE_handles_v1';
     function openDB(){
       return new Promise((resolve, reject)=>{
-        const r = indexedDB.open(DB_NAME, 1);
+        // bump DB version to 2 to add 'scans' store when needed
+        const r = indexedDB.open(DB_NAME, 2);
         r.onupgradeneeded = ()=>{
           const db = r.result;
           if(!db.objectStoreNames.contains('handles')) db.createObjectStore('handles');
+          if(!db.objectStoreNames.contains('scans')) db.createObjectStore('scans');
         };
         r.onsuccess = ()=>resolve(r.result);
         r.onerror = ()=>reject(r.error);
@@ -219,23 +245,191 @@
 
     async function useStoredHandleIfAvailable(){
       try{
-        const stored = await getHandle('dir');
-        if(stored){
-          // ask for permission if needed
-          if(typeof stored.requestPermission === 'function'){
-            const perm = await stored.requestPermission({mode:'read'});
-            if(perm === 'granted'){
-              const files = await traverseDirHandle(stored);
-              return {handle: stored, files};
+        // Prefer any saved handles in the DB (new multi-save). Use the first available.
+        const saved = await listAllSavedHandles();
+        if(saved && saved.length){
+          const id = saved[0].id;
+          const rec = await getHandle(id);
+          const handle = rec && rec.handle ? rec.handle : rec;
+          if(handle){
+            if(typeof handle.requestPermission === 'function'){
+              const perm = await handle.requestPermission({mode:'read'});
+              if(perm === 'granted'){
+                const files = await traverseDirHandle(handle);
+                return {handle, files};
+              }
+            } else {
+              const files = await traverseDirHandle(handle);
+              return {handle, files};
             }
-          } else {
-            // try to iterate (some browsers auto-grant)
-            const files = await traverseDirHandle(stored);
-            return {handle: stored, files};
+          }
+        }
+        // legacy single-key fallback
+        const stored = await getHandle('dir').catch(()=>null);
+        if(stored){
+          const handle = stored.handle || stored;
+          if(handle){
+            if(typeof handle.requestPermission === 'function'){
+              const perm = await handle.requestPermission({mode:'read'});
+              if(perm === 'granted'){
+                const files = await traverseDirHandle(handle);
+                return {handle, files};
+              }
+            } else {
+              const files = await traverseDirHandle(handle);
+              return {handle, files};
+            }
           }
         }
       }catch(e){ console.warn('No stored handle available or permission denied', e); }
       return null;
+    }
+
+    // List all saved handles (returns array of {id, name})
+    async function listAllSavedHandles(){
+      const db = await openDB();
+      return new Promise((res, rej)=>{
+        const tx = db.transaction('handles','readonly');
+        const store = tx.objectStore('handles');
+        const out = [];
+        store.openCursor().onsuccess = (ev)=>{
+          const cur = ev.target.result;
+          if(cur){
+            const key = cur.key;
+            const val = cur.value;
+            let name = '';
+            if(val && typeof val === 'object'){
+              name = val.name || (val.handle && val.handle.name) || String(key);
+            } else if(val && typeof val.name === 'string'){
+              name = val.name;
+            } else {
+              name = String(key);
+            }
+            out.push({id:key, name});
+            cur.continue();
+          } else {
+            res(out);
+          }
+        };
+        store.openCursor().onerror = (e)=>rej(e);
+      });
+    }
+
+    // Render saved folders UI (only show name)
+    async function renderSavedFolders(){
+      const list = document.getElementById('savedFoldersList');
+      const box = document.getElementById('savedFoldersBox');
+      const items = await listAllSavedHandles().catch(()=>[]);
+      if(!items || !items.length){ list.style.display='none'; box.innerHTML=''; return; }
+      list.style.display='flex';
+      box.innerHTML = '';
+      // render as compact pills in the toolbar area
+      for(const it of items){
+        const pill = document.createElement('div');
+        pill.className = 'pill';
+        const span = document.createElement('div');
+        span.textContent = it.name;
+        span.style.cursor = 'pointer';
+        span.addEventListener('click', ()=> useSavedHandle(it.id));
+        const btn = document.createElement('button');
+        btn.textContent = '×';
+        btn.title = 'Remove saved folder';
+        btn.addEventListener('click', async (e)=>{ e.stopPropagation(); await removeHandle(it.id); await renderSavedFolders(); });
+        pill.appendChild(span);
+        pill.appendChild(btn);
+        box.appendChild(pill);
+        // also add to vertical list
+        const v = document.createElement('div'); v.className='pill'; v.style.width='100%';
+        const vspan = document.createElement('div'); vspan.textContent = it.name; vspan.style.cursor='pointer'; vspan.addEventListener('click', ()=> useSavedHandle(it.id));
+        const vbtn = document.createElement('button'); vbtn.textContent='Use'; vbtn.addEventListener('click', ()=> useSavedHandle(it.id));
+        const vdel = document.createElement('button'); vdel.textContent='Forget'; vdel.addEventListener('click', async (e)=>{ e.stopPropagation(); await removeHandle(it.id); await renderSavedFolders(); });
+        v.appendChild(vspan); const right = document.createElement('div'); right.style.display='flex'; right.style.gap='.5rem'; right.appendChild(vbtn); right.appendChild(vdel); v.appendChild(right);
+        list.appendChild(v);
+      }
+    }
+
+    // Scans storage helpers
+    async function putScan(id, record){
+      const db = await openDB();
+      return new Promise((res, rej)=>{
+        const tx = db.transaction('scans','readwrite');
+        tx.objectStore('scans').put(record, id);
+        tx.oncomplete = ()=>res();
+        tx.onerror = ()=>rej(tx.error);
+      });
+    }
+    async function listScans(){
+      const db = await openDB();
+      return new Promise((res, rej)=>{
+        const tx = db.transaction('scans','readonly');
+        const store = tx.objectStore('scans');
+        const out = [];
+        store.openCursor().onsuccess = (ev)=>{
+          const cur = ev.target.result;
+          if(cur){ out.push({id: cur.key, rec: cur.value}); cur.continue(); }
+          else res(out);
+        };
+        store.openCursor().onerror = (e)=>rej(e);
+      });
+    }
+    async function removeScan(id){
+      const db = await openDB();
+      return new Promise((res, rej)=>{
+        const tx = db.transaction('scans','readwrite');
+        tx.objectStore('scans').delete(id);
+        tx.oncomplete = ()=>res();
+        tx.onerror = ()=>rej(tx.error);
+      });
+    }
+
+    async function renderScans(){
+      const container = document.getElementById('scansGrid');
+      container.innerHTML = '';
+      const items = await listScans().catch(()=>[]);
+      if(!items || !items.length){ container.innerHTML = '<div style="opacity:.8">No saved scans yet.</div>'; return; }
+      for(const it of items.reverse()){
+        const r = it.rec;
+        const card = document.createElement('div'); card.className='scan-card';
+        const meta = document.createElement('div'); meta.className='meta';
+        const name = document.createElement('div'); name.className='name'; name.textContent = r.name || 'Scan';
+        const when = document.createElement('div'); when.className='small'; when.textContent = new Date(r.ts).toLocaleString();
+        meta.appendChild(name); meta.appendChild(when);
+        const stats = document.createElement('div'); stats.className='stats';
+        const files = document.createElement('div'); files.textContent = `${r.count} files`;
+        const size = document.createElement('div'); size.textContent = fmtBytes(r.totalOrig||0);
+        const comp = document.createElement('div'); comp.textContent = r.totalOrig? (Math.round(((r.totalOrig - (r.totalComp||0))/r.totalOrig)*100) + '%') : '-';
+        stats.appendChild(files); stats.appendChild(size); stats.appendChild(comp);
+        const actions = document.createElement('div'); actions.className='scan-actions';
+        const openBtn = document.createElement('md-filled-button'); openBtn.textContent='Open'; openBtn.addEventListener('click', ()=>{ if(r.files){ startScan(r.files); } });
+        const delBtn = document.createElement('md-filled-button'); delBtn.setAttribute('appearance','outlined'); delBtn.textContent='Forget'; delBtn.addEventListener('click', async ()=>{ await removeScan(it.id); await renderScans(); });
+        actions.appendChild(openBtn); actions.appendChild(delBtn);
+        card.appendChild(meta); card.appendChild(stats); card.appendChild(actions);
+        container.appendChild(card);
+      }
+    }
+
+    async function useSavedHandle(id){
+      try{
+        const rec = await getHandle(id);
+        const handle = rec && rec.handle ? rec.handle : rec;
+        if(!handle){ alert('Saved handle not available'); return; }
+        if(typeof handle.requestPermission === 'function'){
+          const perm = await handle.requestPermission({mode:'read'});
+          if(perm !== 'granted'){ alert('Permission not granted for that folder'); return; }
+        }
+        const files = await traverseDirHandle(handle);
+        if(files && files.length) startScan(files, { handleId: id, name: handle.name });
+      }catch(e){ console.warn(e); alert('Unable to access saved folder.'); }
+    }
+
+    async function saveSavedHandle(dirHandle){
+      try{
+        const id = 'h' + Date.now();
+        const rec = { name: dirHandle.name || ('folder-' + id), handle: dirHandle };
+        await putHandle(id, rec);
+        await renderSavedFolders();
+        return id;
+      }catch(e){ console.warn('Saving handle failed', e); }
     }
 
     // Choose folder button — explicit picking
@@ -248,10 +442,12 @@
       try{
         const dirHandle = await window.showDirectoryPicker();
         const files = await traverseDirHandle(dirHandle);
+        let handleId = null;
         if(rememberFolder.checked){
-          try{ await putHandle('dir', dirHandle); savedFolderArea.style.display='flex'; savedFolderLabel.textContent = dirHandle.name; }catch(e){ console.warn('Storing handle failed', e); }
+          try{ handleId = await saveSavedHandle(dirHandle); }catch(e){ console.warn('Storing handle failed', e); }
         }
-        startScan(files);
+        await renderSavedFolders();
+        startScan(files, { handleId, name: dirHandle.name });
       }catch(e){ console.warn('Directory pick cancelled', e); }
     });
 
@@ -264,6 +460,7 @@
           savedFolderLabel.textContent = s.handle.name || 'Saved folder';
           rememberFolder.checked = true;
         }
+        await renderSavedFolders();
       }catch(e){}
     })();
 
@@ -286,9 +483,11 @@
         try{
           const dirHandle = await window.showDirectoryPicker();
           const files = await traverseDirHandle(dirHandle);
-          if(rememberFolder.checked){ try{ await putHandle('dir', dirHandle); savedFolderArea.style.display='flex'; savedFolderLabel.textContent = dirHandle.name; }catch(e){ console.warn('Storing handle failed', e); } }
+          let handleId = null;
+          if(rememberFolder.checked){ try{ handleId = await saveSavedHandle(dirHandle); }catch(e){ console.warn('Storing handle failed', e); } }
+          await renderSavedFolders();
           if(!files.length){ alert('No files found in chosen folder.'); return; }
-          startScan(files);
+          startScan(files, { handleId, name: dirHandle.name });
           return;
         }catch(err){
           console.warn('Directory pick cancelled or failed, falling back to file input', err);
@@ -301,11 +500,16 @@
     });
 
     clearSavedBtn.addEventListener('click', async ()=>{
-      await removeHandle('dir').catch(()=>{});
-      savedFolderArea.style.display='none';
-      rememberFolder.checked = false;
-      savedFolderLabel.textContent = '';
-      alert('Saved folder cleared.');
+      // Clear all saved handles
+      try{
+        const items = await listAllSavedHandles();
+        for(const it of items) await removeHandle(it.id).catch(()=>{});
+        await renderSavedFolders();
+        savedFolderArea.style.display='none';
+        rememberFolder.checked = false;
+        savedFolderLabel.textContent = '';
+        alert('All saved folders cleared.');
+      }catch(e){ console.warn(e); alert('Failed to clear saved folders.'); }
     });
 
     folderPicker.addEventListener('change', ()=>{
@@ -327,7 +531,7 @@
       alert('Run would execute repacking on scanned files (not implemented in preview).');
     });
 
-    async function startScan(files){
+    async function startScan(files, meta={}){
       setSpinner(true);
       progressArea.style.display = '';
       progressBar.style.width = '0%';
@@ -426,6 +630,15 @@
 
       resultsSection.style.display = '';
       lastScan = {extMap, totalBytes, fileInfos};
+
+      // Save a short scan record (does not store all File objects)
+      try{
+        const folderName = meta && meta.name ? meta.name : (files && files.length && files[0].webkitRelativePath ? files[0].webkitRelativePath.split('/')[0] : 'Scan ' + new Date().toLocaleString());
+        const scanRec = { name: folderName, ts: Date.now(), count: fileInfos.length, totalOrig: est.totalOrig || 0, totalComp: est.totalComp || 0, handleId: meta && meta.handleId ? meta.handleId : null };
+        const sid = 's' + Date.now();
+        await putScan(sid, scanRec).catch(()=>{});
+        await renderScans();
+      }catch(e){ console.warn('Saving scan record failed', e); }
     }
 
     let typeChart=null, sizeChart=null;
@@ -500,6 +713,17 @@
           updateThemeUI();
         });
       }
+      // Wire mobile toolbar buttons
+      const mobileScanBtn = document.getElementById('mobileScanBtn');
+      const mobileChooseBtn = document.getElementById('mobileChooseBtn');
+      const mobileRunBtn = document.getElementById('mobileRunBtn');
+      const mobileClearBtn = document.getElementById('mobileClearBtn');
+      const mobileThemeBtn = document.getElementById('mobileThemeBtn');
+      if(mobileScanBtn) mobileScanBtn.addEventListener('click', ()=> scanBtn.click());
+      if(mobileChooseBtn) mobileChooseBtn.addEventListener('click', ()=> chooseFolderBtn.click());
+      if(mobileRunBtn) mobileRunBtn.addEventListener('click', ()=> runBtn.click());
+      if(mobileClearBtn) mobileClearBtn.addEventListener('click', ()=> clearBtn.click());
+      if(mobileThemeBtn) mobileThemeBtn.addEventListener('click', ()=> themeToggle.click());
   </script>
 </body>
 </html>

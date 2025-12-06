@@ -1,0 +1,21 @@
+{
+  "name": "formatnpackage",
+  "version": "1.0.0",
+  "description": "A Mac/PC NodeJS App that sorts, optimizes and packages files based on format/type then saves on a server, drive or folder. Weight Loss for your Mom and Your Code!\r # READ WARP.md",
+  "main": "repack_by_type.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/raverynighthawkfs/FORMATnPACKAGE.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/raverynighthawkfs/FORMATnPACKAGE/issues"
+  },
+  "homepage": "https://github.com/raverynighthawkfs/FORMATnPACKAGE#readme"
+}
