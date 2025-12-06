@@ -37,39 +37,232 @@
     <section class="section">
       <h3>Inputs</h3>
       <div class="grid">
-        <md-filled-text-field label="Input directory" value="C:\\Users\\ravery\\Desktop\\test_files"></md-filled-text-field>
-        <md-filled-text-field label="Output directory" value="C:\\Users\\ravery\\Desktop\\compression_results"></md-filled-text-field>
-        <md-filled-text-field label="Extensions" value=".tif .tiff .png .jpg .json .txt"></md-filled-text-field>
-        <md-filled-text-field label="Max files" type="number" value="50"></md-filled-text-field>
+        <div>
+          <label for="folderPicker" class="label">Select folder to scan</label>
+          <input id="folderPicker" type="file" webkitdirectory directory multiple style="width:100%; padding:.5rem;" />
+        </div>
+        <div>
+          <md-filled-text-field id="maxFiles" label="Max files to process (0 = all)" type="number" value="0"></md-filled-text-field>
+        </div>
+        <div>
+          <md-filled-text-field id="extensions" label="Extensions filter (space-separated)" value=".tif .tiff .png .jpg .json .txt"></md-filled-text-field>
+        </div>
+        <div>
+          <md-filled-text-field id="outputDir" label="Output directory" value="C:\\Users\\ravery\\Desktop\\compression_results"></md-filled-text-field>
+        </div>
       </div>
-      <div style="margin-top:1rem; display:flex; gap:.5rem; flex-wrap:wrap; align-items:center;">
-        <md-assist-chip label="zip"></md-assist-chip>
-        <md-assist-chip label="gzip"></md-assist-chip>
-        <md-assist-chip label="xz"></md-assist-chip>
-        <md-assist-chip label="zstd"></md-assist-chip>
-        <md-assist-chip label="7z"></md-assist-chip>
-      </div>
-      <div style="margin-top:1rem; display:flex; gap:.5rem;">
+
+      <div style="margin-top:1rem; display:flex; gap:.5rem; align-items:center;">
+        <md-filled-button id="scanBtn">
+          <span class="material-symbols-outlined" slot="icon">search</span>
+          Scan
+        </md-filled-button>
         <md-filled-button id="runBtn">
           <span class="material-symbols-outlined" slot="icon">play_arrow</span>
           Run
         </md-filled-button>
-        <md-filled-button appearance="tonal">
-          <span class="material-symbols-outlined" slot="icon">settings</span>
-          Settings
+        <md-filled-button appearance="tonal" id="clearBtn">
+          <span class="material-symbols-outlined" slot="icon">refresh</span>
+          Clear
         </md-filled-button>
+        <div id="spinner" class="spinner hidden" title="Scanning"></div>
+      </div>
+
+      <div id="progressArea" class="section" style="margin-top:1rem; display:none;">
+        <div style="display:flex; align-items:center; gap:1rem;">
+          <div style="flex:1">
+            <div id="progressBarContainer" class="progress-bar-container"><div id="progressBar" class="progress-bar" style="width:0%"></div></div>
+          </div>
+          <div id="progressText">0 / 0</div>
+        </div>
       </div>
     </section>
 
-    <section class="section">
-      <h3>Results (mock)</h3>
-      <md-list>
-        <md-list-item headline="image01.tif" supporting-text="orig 120MB → xz 23% zstd 28% gzip 45% zip 49% 7z 21%"></md-list-item>
-        <md-list-item headline="image02.tif" supporting-text="orig 118MB → xz 24% zstd 29% gzip 46% zip 50% 7z 22%"></md-list-item>
-      </md-list>
+    <section class="section" id="resultsSection" style="display:none;">
+      <h3>Scan Results</h3>
+      <div class="grid">
+        <div>
+          <canvas id="typeChart" width="400" height="250"></canvas>
+        </div>
+        <div>
+          <canvas id="sizeChart" width="400" height="250"></canvas>
+        </div>
+      </div>
+
+      <h4 style="margin-top:1rem">Top files (by size)</h4>
+      <md-list id="topFiles"></md-list>
     </section>
 
-    <div class="footer">This is a static preview to validate tokens, components, and layout. Hook up real data later.</div>
+    <div class="footer">This preview scans a selected folder in-browser (no server). Use the folder picker to choose files.</div>
   </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    // Helper functions
+    function fmtBytes(bytes){
+      if(bytes===0) return '0 B';
+      const sizes=['B','KB','MB','GB','TB'];
+      const i=Math.floor(Math.log(bytes)/Math.log(1024));
+      return (bytes/Math.pow(1024,i)).toFixed(i?1:0)+' '+sizes[i];
+    }
+
+    const folderPicker = document.getElementById('folderPicker');
+    const scanBtn = document.getElementById('scanBtn');
+    const runBtn = document.getElementById('runBtn');
+    const clearBtn = document.getElementById('clearBtn');
+    const spinner = document.getElementById('spinner');
+    const progressArea = document.getElementById('progressArea');
+    const progressBar = document.getElementById('progressBar');
+    const progressText = document.getElementById('progressText');
+    const resultsSection = document.getElementById('resultsSection');
+    const topFiles = document.getElementById('topFiles');
+
+    let lastScan = null;
+
+    function setSpinner(show){
+      spinner.classList.toggle('hidden', !show);
+    }
+
+    function updateProgress(done, total){
+      const pct = total? Math.round((done/total)*100):0;
+      progressBar.style.width = pct + '%';
+      progressText.textContent = `${done} / ${total}`;
+    }
+
+    scanBtn.addEventListener('click', ()=>{
+      if(!folderPicker.files.length){
+        folderPicker.click();
+        return;
+      }
+      startScan(Array.from(folderPicker.files));
+    });
+
+    folderPicker.addEventListener('change', ()=>{
+      if(folderPicker.files.length){
+        startScan(Array.from(folderPicker.files));
+      }
+    });
+
+    clearBtn.addEventListener('click', ()=>{
+      folderPicker.value = '';
+      resultsSection.style.display = 'none';
+      progressArea.style.display = 'none';
+      lastScan = null;
+    });
+
+    runBtn.addEventListener('click', ()=>{
+      // Placeholder: in-app run
+      if(!lastScan){ alert('Please scan a folder first.'); return; }
+      alert('Run would execute repacking on scanned files (not implemented in preview).');
+    });
+
+    async function startScan(files){
+      setSpinner(true);
+      progressArea.style.display = '';
+      progressBar.style.width = '0%';
+      resultsSection.style.display = 'none';
+      updateProgress(0, files.length);
+
+      const extMap = new Map();
+      let totalBytes = 0;
+      const fileInfos = [];
+
+      const maxFiles = parseInt(document.getElementById('maxFiles').shadowRoot? document.getElementById('maxFiles').shadowRoot.querySelector('input').value : document.getElementById('maxFiles').value) || 0;
+      const extFilterRaw = document.getElementById('extensions').shadowRoot? document.getElementById('extensions').shadowRoot.querySelector('input').value : document.getElementById('extensions').value;
+      const extFilter = (extFilterRaw||'').split(/\s+/).filter(Boolean).map(e=>e.toLowerCase());
+
+      let processed = 0;
+      for(const f of files){
+        // Optionally stop if over maxFiles
+        if(maxFiles>0 && processed>=maxFiles) break;
+        // ignore directories (they may appear as zero-length entries)
+        if(f.size === undefined) continue;
+
+        const name = f.name || 'unknown';
+        const dot = name.lastIndexOf('.');
+        const ext = dot>-1 ? name.slice(dot).toLowerCase() : '(no ext)';
+        if(extFilter.length && !extFilter.includes(ext)){
+          processed++; updateProgress(processed, files.length); await new Promise(r=>setTimeout(r,0)); continue;
+        }
+
+        const prev = extMap.get(ext) || {count:0, bytes:0};
+        prev.count += 1;
+        prev.bytes += f.size;
+        extMap.set(ext, prev);
+
+        totalBytes += f.size;
+        fileInfos.push({name, size:f.size, ext});
+
+        processed++;
+        if(processed % 50 === 0) {
+          updateProgress(processed, files.length);
+          await new Promise(r=>setTimeout(r,10));
+        } else {
+          updateProgress(processed, files.length);
+        }
+      }
+
+      // finalize
+      setSpinner(false);
+      progressArea.style.display = 'none';
+
+      // Prepare chart data
+      const typeLabels = Array.from(extMap.keys());
+      const typeCounts = typeLabels.map(k=>extMap.get(k).count);
+      const typeBytes = typeLabels.map(k=>extMap.get(k).bytes);
+
+      // top files by size
+      fileInfos.sort((a,b)=>b.size-a.size);
+      const topN = fileInfos.slice(0,10);
+
+      renderCharts(typeLabels, typeCounts, typeBytes, totalBytes);
+
+      // populate topFiles list
+      topFiles.innerHTML = '';
+      for(const fi of topN){
+        const li = document.createElement('md-list-item');
+        li.setAttribute('headline', fi.name);
+        li.setAttribute('supporting-text', fmtBytes(fi.size) + ' — ' + fi.ext);
+        topFiles.appendChild(li);
+      }
+
+      resultsSection.style.display = '';
+      lastScan = {extMap, totalBytes, fileInfos};
+    }
+
+    let typeChart=null, sizeChart=null;
+    function renderCharts(labels, counts, bytesArr, totalBytes){
+      const ctx1 = document.getElementById('typeChart').getContext('2d');
+      const ctx2 = document.getElementById('sizeChart').getContext('2d');
+      if(typeChart) typeChart.destroy();
+      if(sizeChart) sizeChart.destroy();
+
+      typeChart = new Chart(ctx1, {
+        type: 'doughnut',
+        data: {
+          labels: labels,
+          datasets: [{
+            data: counts,
+            backgroundColor: labels.map((_,i)=>`hsl(${(i*47)%360} 70% 55%)`),
+            hoverOffset: 6
+          }]
+        },
+        options: {plugins:{legend:{position:'right'}}}
+      });
+
+      sizeChart = new Chart(ctx2, {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: 'Bytes',
+            data: bytesArr.map(b=>b/1024/1024),
+            backgroundColor: labels.map((_,i)=>`hsl(${(i*47)%360} 60% 45%)`)
+          }]
+        },
+        options: {scales:{y:{title:{display:true,text:'MB'}}}, plugins:{legend:{display:false}}}
+      });
+    }
+  </script>
 </body>
 </html>
