@@ -1,2 +1,1 @@
-# Optional dependency used when enabling zstd compression in compression_backbone.py
-zstandard>=0.22,<1.0
+zstandard>=0.21.0

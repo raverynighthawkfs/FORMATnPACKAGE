@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FORMATnPACKAGE - File Organizer</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Header -->
+    <header class="app-header">
+      <h1>FORMATnPACKAGE</h1>
+      <p class="tagline">Sort, Optimize & Package Your Files</p>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <!-- File Selection Panel -->
+      <section class="panel file-selection">
+        <h2>Select Directory</h2>
+        <div class="input-group">
+          <button id="select-dir-btn" class="btn btn-primary">Choose Folder</button>
+          <span id="selected-path" class="path-display">No directory selected</span>
+        </div>
+      </section>
+
+      <!-- File Type Filters -->
+      <section class="panel file-filters">
+        <h2>File Type Filters</h2>
+        <div class="filter-grid">
+          <label class="filter-item">
+            <input type="checkbox" name="filter" value="images" checked>
+            <span>Images (jpg, png, gif, svg)</span>
+          </label>
+          <label class="filter-item">
+            <input type="checkbox" name="filter" value="documents" checked>
+            <span>Documents (pdf, doc, txt)</span>
+          </label>
+          <label class="filter-item">
+            <input type="checkbox" name="filter" value="videos" checked>
+            <span>Videos (mp4, avi, mov)</span>
+          </label>
+          <label class="filter-item">
+            <input type="checkbox" name="filter" value="audio" checked>
+            <span>Audio (mp3, wav, flac)</span>
+          </label>
+          <label class="filter-item">
+            <input type="checkbox" name="filter" value="archives" checked>
+            <span>Archives (zip, rar, 7z)</span>
+          </label>
+          <label class="filter-item">
+            <input type="checkbox" name="filter" value="code" checked>
+            <span>Code (js, py, java, cpp)</span>
+          </label>
+        </div>
+      </section>
+
+      <!-- Options Panel -->
+      <section class="panel options">
+        <h2>Processing Options</h2>
+        <div class="options-grid">
+          <label class="option-item">
+            <input type="checkbox" id="optimize-images" checked>
+            <span>Optimize Images</span>
+          </label>
+          <label class="option-item">
+            <input type="checkbox" id="compress-files" checked>
+            <span>Compress Files</span>
+          </label>
+          <label class="option-item">
+            <input type="checkbox" id="create-subfolders" checked>
+            <span>Create Subfolders by Type</span>
+          </label>
+          <label class="option-item">
+            <input type="checkbox" id="preserve-structure">
+            <span>Preserve Original Structure</span>
+          </label>
+        </div>
+      </section>
+
+      <!-- Output Settings -->
+      <section class="panel output-settings">
+        <h2>Output Destination</h2>
+        <div class="input-group">
+          <select id="output-type" class="select">
+            <option value="same">Same Directory</option>
+            <option value="new">New Directory</option>
+            <option value="server">Server/Network Drive</option>
+          </select>
+          <button id="select-output-btn" class="btn btn-secondary">Choose Output Location</button>
+        </div>
+        <span id="output-path" class="path-display">Output: Same as source</span>
+      </section>
+
+      <!-- Progress and Status -->
+      <section class="panel progress-panel">
+        <h2>Status</h2>
+        <div class="progress-container">
+          <div id="progress-bar" class="progress-bar">
+            <div id="progress-fill" class="progress-fill" style="width: 0%"></div>
+          </div>
+          <p id="status-text" class="status-text">Ready to process files</p>
+        </div>
+        <div id="file-list" class="file-list"></div>
+      </section>
+
+      <!-- Action Buttons -->
+      <section class="actions">
+        <button id="start-btn" class="btn btn-success btn-large">Start Processing</button>
+        <button id="cancel-btn" class="btn btn-danger btn-large" disabled>Cancel</button>
+        <button id="clear-btn" class="btn btn-secondary">Clear</button>
+      </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="app-footer">
+      <p>Weight Loss for your Mom and Your Code! © 2025</p>
+    </footer>
+  </div>
+
+  <script src="js/renderer.js"></script>
+</body>
+</html>
