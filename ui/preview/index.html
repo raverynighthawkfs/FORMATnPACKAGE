@@ -467,6 +467,26 @@
 
     // Choose folder button — explicit picking
     chooseFolderBtn.addEventListener('click', async ()=>{
+      const electronAPI = window.electronAPI;
+      if(electronAPI){
+        try{
+          const folder = await electronAPI.pickFolder();
+          if(!folder) return;
+          const res = await electronAPI.scanFolder(folder);
+          if(res && res.success){
+            const files = res.files.map(f=>({ name: f.name, size: f.size, webkitRelativePath: f.relPath }));
+            // store root path for run
+            lastScan = lastScan || {};
+            lastScan.rootPath = folder;
+            const folderName = folder.split(/[\\\/]/).pop();
+            startScan(files, { handleId: null, name: folderName, rootPath: folder });
+          } else {
+            alert('Failed to scan folder: ' + (res && res.error ? res.error : 'unknown'));
+          }
+        }catch(e){ console.warn('Electron folder pick cancelled', e); }
+        return;
+      }
+
       if(!window.showDirectoryPicker){
         alert('Directory picker is not supported in this browser. Use the folder picker input.');
         folderPicker.click();
@@ -511,6 +531,23 @@
             if(files.length) return startScan(files);
           }
         }catch(e){ console.warn('Stored handle failed; falling back', e); }
+      }
+
+      // If running inside Electron, try to use the native dialog + scan
+      const electronAPI = window.electronAPI;
+      if(electronAPI){
+        try{
+          const folder = await electronAPI.pickFolder();
+          if(!folder) return;
+          const res = await electronAPI.scanFolder(folder);
+          if(res && res.success){
+            const files = res.files.map(f=>({ name: f.name, size: f.size, webkitRelativePath: f.relPath }));
+            lastScan = lastScan || {}; lastScan.rootPath = folder;
+            const folderName = folder.split(/[\\\/]/).pop();
+            startScan(files, { handleId: null, name: folderName, rootPath: folder });
+            return;
+          }
+        }catch(err){ console.warn('Electron directory pick failed', err); }
       }
 
       if(window.showDirectoryPicker){
@@ -561,8 +598,33 @@
 
     runBtn.addEventListener('click', async ()=>{
       if(!lastScan){ alert('Please scan a folder first.'); return; }
+      const electronAPI = window.electronAPI;
+      if(electronAPI && lastScan && lastScan.rootPath){
+        setSpinner(true);
+        const logs = [];
+        const onLog = (msg)=>{ logs.push(msg); console.log('repack:', msg); };
+        electronAPI.onRepackLog(onLog);
+        try{
+          const res = await electronAPI.runRepack(lastScan.rootPath, {});
+          setSpinner(false);
+          if(res && res.success){
+            if(lastSavedScanId) await markScanSuccess(lastSavedScanId);
+            else {
+              // try to match and mark
+              const scans = await listScans().catch(()=>[]);
+              const candidate = scans.find(s=>s.rec && s.rec.count === lastScan.fileInfos.length && s.rec.totalOrig === lastScan.totalBytes);
+              if(candidate) await markScanSuccess(candidate.id);
+            }
+            alert('Repack completed successfully. Output created.');
+          } else {
+            alert('Repack failed: ' + (res && (res.stderr||res.error||res.message) ? (res.stderr||res.error||res.message) : JSON.stringify(res)));
+          }
+        }catch(err){ setSpinner(false); alert('Repack failed: ' + (err && err.message ? err.message : String(err))); }
+        return;
+      }
+
+      // Non-electron fallback: mark a saved scan as UI-run only
       setSpinner(true);
-      // In this preview we mark the latest saved scan as run-successful (UI-level).
       if(lastSavedScanId){
         await markScanSuccess(lastSavedScanId);
         setSpinner(false);
