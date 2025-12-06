@@ -167,11 +167,11 @@
     }
     async function putHandle(key, handle){
       const db = await openDB();
-      return new Promise((res, rej)=>{
+      return new Promise((res, rej) => {
         const tx = db.transaction('handles','readwrite');
         tx.objectStore('handles').put(handle, key);
-        tx.oncomplete = ()=>res();
-        tx.onerror = ()=>rej(tx.error);
+        tx.oncomplete = () => res();
+        tx.onerror = () => rej(tx.error);
       });
     }
     async function getHandle(key){
