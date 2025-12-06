@@ -1,5 +1,1 @@
-Pillow>=10.2.0
-PyPDF2>=3.0.0
-python-magic>=0.4.27
-# Optional dependency used when enabling zstd compression in compression_backbone.py
-zstandard>=0.22,<1.0
+zstandard>=0.21.0
