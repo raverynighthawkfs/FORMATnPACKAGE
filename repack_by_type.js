@@ -51,6 +51,8 @@ const ARCHIVE_LAYOUT = {
   // you could add other groups later, e.g. "rasters_only.zip"
 };
 
+const OUTPUT_DIR_NAME = 'output';
+
 // ----------------------------------------------------------------------
 
 function parseArgs() {
@@ -113,25 +115,31 @@ function classifyFile(filePath) {
   return "unknown";
 }
 
-async function createZipArchive(rootDir, archiveName, fileList, moveMode, dryRun) {
+async function createZipArchive(rootDir, outputRoot, archiveName, fileList, moveMode, dryRun) {
   if (!fileList.length) return;
 
-  const archivePath = path.join(rootDir, archiveName);
+  const archivePath = path.join(outputRoot, archiveName);
+
+  // ensure output dir exists
+  await fsp.mkdir(outputRoot, { recursive: true });
 
   if (dryRun) {
     console.log(`[DRY RUN] Would create archive: ${archivePath}`);
     fileList.forEach(f =>
       console.log(`  - include: ${path.relative(rootDir, f)}`)
     );
-    return;
+    return { archivePath, bytes: 0 };
   }
 
   console.log(`Creating archive: ${archivePath}`);
-  await new Promise((resolve, reject) => {
+  const result = await new Promise((resolve, reject) => {
     const output = fs.createWriteStream(archivePath);
     const archive = Archiver("zip", { zlib: { level: 9 } });
 
-    output.on("close", resolve);
+    output.on("close", () => {
+      const bytes = archive.pointer();
+      resolve({ archivePath, bytes });
+    });
     output.on("error", reject);
     archive.on("error", reject);
 
@@ -145,10 +153,10 @@ async function createZipArchive(rootDir, archiveName, fileList, moveMode, dryRun
     archive.finalize();
   });
 
-  console.log(`Archive created: ${archivePath}`);
+  console.log(`Archive created: ${result.archivePath} (${result.bytes} bytes)`);
 
   if (moveMode) {
-    console.log(`Deleting original files for archive: ${archivePath}`);
+    console.log(`Deleting original files for archive: ${result.archivePath}`);
     for (const file of fileList) {
       try {
         await fsp.unlink(file);
@@ -157,6 +165,8 @@ async function createZipArchive(rootDir, archiveName, fileList, moveMode, dryRun
       }
     }
   }
+
+  return result;
 }
 
 async function main() {
@@ -211,14 +221,19 @@ async function main() {
   console.log("");
 
   // Build archives per layout
+  const outputRoot = path.join(rootDir, OUTPUT_DIR_NAME);
+  const created = [];
+
   if (groups.compressible.length && ARCHIVE_LAYOUT.compressible) {
-    await createZipArchive(
+    const res = await createZipArchive(
       rootDir,
+      outputRoot,
       ARCHIVE_LAYOUT.compressible,
       groups.compressible,
       moveMode,
       dryRun
     );
+    if (res) created.push({ name: ARCHIVE_LAYOUT.compressible, bytes: res.bytes, count: groups.compressible.length });
   }
 
   // You can add more archive logic here later,
@@ -240,6 +255,14 @@ async function main() {
   }
 
   console.log("\nDone.");
+
+  // write manifest in output folder
+  try{
+    await fsp.mkdir(outputRoot, { recursive: true });
+    const manifest = { created, summary: countSummary, ts: Date.now() };
+    await fsp.writeFile(path.join(outputRoot, 'manifest.json'), JSON.stringify(manifest, null, 2), 'utf8');
+    console.log(`Wrote manifest to ${path.join(outputRoot, 'manifest.json')}`);
+  }catch(e){ /* ignore */ }
 }
 
 main().catch(err => {

@@ -11,6 +11,8 @@
 .instructions .note{ background:var(--md-sys-color-surface); color:var(--md-sys-color-on-surface); border:1px solid var(--md-sys-color-outline); border-radius:10px; padding:.75rem 1rem; font-size:.95rem; }
 /* ensure top note isn't flush with sticky app-bar */
 .instructions{ margin-top:0.9rem; }
+/* add spacing between primary section blocks so they don't touch */
+.container > .section + .section{ margin-top:1rem; }
 
 /* Make sections stack with consistent vertical spacing on small screens */
 @media (max-width:640px){

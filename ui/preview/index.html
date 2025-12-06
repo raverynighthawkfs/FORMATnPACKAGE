@@ -70,7 +70,7 @@
           Scan
         </md-filled-button>
         <md-filled-button id="chooseFolderBtn" appearance="outlined">
-          <span class="material-symbols-outlined" slot="icon">folder_open</span>
+          <span class="material-symbols-outlined" slot="icon">file_upload</span>
           Choose folder
         </md-filled-button>
         <md-filled-button id="runBtn">
@@ -125,7 +125,7 @@
       <md-list id="topFiles"></md-list>
     </section>
 
-    <section class="section" id="scansSection">
+    <section class="section" id="scansSection" style="display:none;">
       <h3>Saved Scans</h3>
       <div id="scansGrid" class="scans-grid"></div>
       <div style="margin-top:.75rem; display:flex; justify-content:flex-end; gap:.5rem;">
@@ -168,6 +168,7 @@
     const topFiles = document.getElementById('topFiles');
 
     let lastScan = null;
+    let lastSavedScanId = null;
     const rememberFolder = document.getElementById('rememberFolder');
     const savedFolderArea = document.getElementById('savedFolderArea');
     const savedFolderLabel = document.getElementById('savedFolderLabel');
@@ -393,6 +394,11 @@
         const meta = document.createElement('div'); meta.className='meta';
         const name = document.createElement('div'); name.className='name'; name.textContent = r.name || 'Scan';
         const when = document.createElement('div'); when.className='small'; when.textContent = new Date(r.ts).toLocaleString();
+        // checkmark for successful run
+        if(r.ran){
+          const chk = document.createElement('span'); chk.setAttribute('aria-hidden','true'); chk.style.color = 'limegreen'; chk.style.marginLeft = '8px'; chk.textContent = '✔';
+          name.appendChild(chk);
+        }
         meta.appendChild(name); meta.appendChild(when);
         const stats = document.createElement('div'); stats.className='stats';
         const files = document.createElement('div'); files.textContent = `${r.count} files`;
@@ -400,12 +406,39 @@
         const comp = document.createElement('div'); comp.textContent = r.totalOrig? (Math.round(((r.totalOrig - (r.totalComp||0))/r.totalOrig)*100) + '%') : '-';
         stats.appendChild(files); stats.appendChild(size); stats.appendChild(comp);
         const actions = document.createElement('div'); actions.className='scan-actions';
-        const openBtn = document.createElement('md-filled-button'); openBtn.textContent='Open'; openBtn.addEventListener('click', ()=>{ if(r.files){ startScan(r.files); } });
+        const openBtn = document.createElement('md-filled-button'); openBtn.textContent='Open'; openBtn.addEventListener('click', async ()=>{
+          if(r.handleId){
+            try{
+              const recHandle = await getHandle(r.handleId);
+              const handle = recHandle && recHandle.handle ? recHandle.handle : recHandle;
+              if(handle){ const files = await traverseDirHandle(handle); if(files && files.length) startScan(files, { handleId: r.handleId, name: r.name }); }
+            }catch(e){ console.warn(e); alert('Unable to open saved scan (permission or handle missing).'); }
+          } else {
+            alert('No folder handle saved for this scan.');
+          }
+        });
         const delBtn = document.createElement('md-filled-button'); delBtn.setAttribute('appearance','outlined'); delBtn.textContent='Forget'; delBtn.addEventListener('click', async ()=>{ await removeScan(it.id); await renderScans(); });
         actions.appendChild(openBtn); actions.appendChild(delBtn);
         card.appendChild(meta); card.appendChild(stats); card.appendChild(actions);
         container.appendChild(card);
       }
+    }
+
+    // Mark a saved scan as successfully run (UI-level flag)
+    async function markScanSuccess(id){
+      try{
+        const db = await openDB();
+        const tx = db.transaction('scans','readwrite');
+        const store = tx.objectStore('scans');
+        const req = store.get(id);
+        req.onsuccess = async ()=>{
+          const rec = req.result || {};
+          rec.ran = true; rec.completedAt = Date.now();
+          store.put(rec, id);
+          tx.oncomplete = async ()=>{ await renderScans(); };
+        };
+        req.onerror = ()=>{ console.warn('Failed to mark scan success'); };
+      }catch(e){ console.warn(e); }
     }
 
     async function useSavedHandle(id){
@@ -461,6 +494,7 @@
           rememberFolder.checked = true;
         }
         await renderSavedFolders();
+        await renderScans();
       }catch(e){}
     })();
 
@@ -525,10 +559,22 @@
       lastScan = null;
     });
 
-    runBtn.addEventListener('click', ()=>{
-      // Placeholder: in-app run
+    runBtn.addEventListener('click', async ()=>{
       if(!lastScan){ alert('Please scan a folder first.'); return; }
-      alert('Run would execute repacking on scanned files (not implemented in preview).');
+      setSpinner(true);
+      // In this preview we mark the latest saved scan as run-successful (UI-level).
+      if(lastSavedScanId){
+        await markScanSuccess(lastSavedScanId);
+        setSpinner(false);
+        alert('Marked saved scan as completed (UI). To actually produce archives, run the repack script from your shell (see README).');
+        return;
+      }
+      // If we don't have the saved id, try to find a recent scan matching count+size
+      const scans = await listScans().catch(()=>[]);
+      const candidate = scans.find(s=>s.rec && s.rec.count === lastScan.fileInfos.length && s.rec.totalOrig === lastScan.totalBytes);
+      if(candidate){ await markScanSuccess(candidate.id); setSpinner(false); alert('Marked recent saved scan as completed (UI).'); return; }
+      setSpinner(false);
+      alert('No matching saved scan record found to mark as completed. The repack script `repack_by_type.js` can produce output archives from a folder path.');
     });
 
     async function startScan(files, meta={}){
@@ -636,6 +682,7 @@
         const folderName = meta && meta.name ? meta.name : (files && files.length && files[0].webkitRelativePath ? files[0].webkitRelativePath.split('/')[0] : 'Scan ' + new Date().toLocaleString());
         const scanRec = { name: folderName, ts: Date.now(), count: fileInfos.length, totalOrig: est.totalOrig || 0, totalComp: est.totalComp || 0, handleId: meta && meta.handleId ? meta.handleId : null };
         const sid = 's' + Date.now();
+        lastSavedScanId = sid;
         await putScan(sid, scanRec).catch(()=>{});
         await renderScans();
       }catch(e){ console.warn('Saving scan record failed', e); }
@@ -713,6 +760,15 @@
           updateThemeUI();
         });
       }
+      const menuBtn = document.getElementById('menuBtn');
+      if(menuBtn){
+        menuBtn.addEventListener('click', ()=>{
+          const s = document.getElementById('scansSection');
+          if(s) s.style.display = (s.style.display === 'none' || s.style.display === '') ? '' : 'none';
+          // ensure saved scans are rendered when opening
+          renderScans().catch(()=>{});
+        });
+      }
       // Wire mobile toolbar buttons
       const mobileScanBtn = document.getElementById('mobileScanBtn');
       const mobileChooseBtn = document.getElementById('mobileChooseBtn');
@@ -724,6 +780,15 @@
       if(mobileRunBtn) mobileRunBtn.addEventListener('click', ()=> runBtn.click());
       if(mobileClearBtn) mobileClearBtn.addEventListener('click', ()=> clearBtn.click());
       if(mobileThemeBtn) mobileThemeBtn.addEventListener('click', ()=> themeToggle.click());
+      const clearAllScansBtn = document.getElementById('clearAllScans');
+      if(clearAllScansBtn){
+        clearAllScansBtn.addEventListener('click', async ()=>{
+          const items = await listScans().catch(()=>[]);
+          for(const it of items) await removeScan(it.id).catch(()=>{});
+          await renderScans();
+          alert('All saved scans cleared.');
+        });
+      }
   </script>
 </body>
 </html>
