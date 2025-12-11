@@ -6,7 +6,7 @@
   <title>FORMATnPACKAGE – UI Preview</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24..48,300..700,0..1,-50..200&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Ubuntu:wght@400;500;700&family=JetBrains+Mono:wght@400;500&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24..48,300..700,0..1,-50..200&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="../styles/theme.css">
   <link rel="stylesheet" href="../styles/layout.css">
   <!-- Import map for Material Web -->
@@ -41,11 +41,60 @@
   </header>
   <div class="instructions">
     <div class="note">
-      Tip: Click <strong>Choose folder</strong> (or <strong>Scan</strong>) to select a folder to scan. Use <em>Remember folder</em> to keep access between visits. Filters accept space-separated extensions (e.g. <code>.png .jpg .json</code>).
+      <div class="note-title">Precision packaging for messy drives</div>
+      <div class="note-text">Choose a folder once, remember it forever, and let FORMATnPACKAGE group, compress, and report on your heaviest formats. Filters accept space-separated extensions such as <code>.png .jpg .json</code>.</div>
+      <ul class="note-steps">
+        <li><strong>1.</strong> Scan reads metadata locally—no uploads—so you can preview savings instantly.</li>
+        <li><strong>2.</strong> Pin favorite folders with <em>Remember folder</em> to jump back in a single tap.</li>
+        <li><strong>3.</strong> When happy, hit <em>Run</em> to mirror these settings in the CLI packager.</li>
+      </ul>
     </div>
   </div>
 
   <main class="container">
+    <section class="section stats-section" id="statsSection" style="display:none;">
+      <div class="section-heading">
+        <div class="eyebrow">Selected folder</div>
+        <h3>Scan snapshot</h3>
+        <p>These live cards update each time you scan a folder so you can see size, mix, and savings at a glance.</p>
+      </div>
+      <div class="stat-grid">
+        <div class="stat-card accent-indigo">
+          <div class="stat-icon"><span class="material-symbols-outlined">folder_open</span></div>
+          <div class="stat-label">Files scanned</div>
+          <div class="stat-value" id="statFiles">0</div>
+          <div class="stat-sub">Ready to package</div>
+        </div>
+        <div class="stat-card accent-cyan">
+          <div class="stat-icon"><span class="material-symbols-outlined">database</span></div>
+          <div class="stat-label">Total size</div>
+          <div class="stat-value" id="statSize">0 B</div>
+          <div class="stat-sub">Before compression</div>
+        </div>
+        <div class="stat-card accent-emerald">
+          <div class="stat-icon"><span class="material-symbols-outlined">auto_awesome</span></div>
+          <div class="stat-label">Projected savings</div>
+          <div class="stat-value" id="statSaved">—</div>
+          <div class="stat-sub" id="statSavedHint">Run a scan to preview</div>
+        </div>
+        <div class="stat-card accent-amber">
+          <div class="stat-icon"><span class="material-symbols-outlined">pie_chart</span></div>
+          <div class="stat-label">File type mix</div>
+          <div class="stat-value" id="statTypes">0 types</div>
+          <div class="stat-sub" id="statTypesHint">Awaiting scan</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section type-section">
+      <div class="section-heading">
+        <div class="eyebrow">File palette</div>
+        <h3>Formats we monitor</h3>
+        <p>Every tile pairs an icon and color so you can quickly spot the families FORMATnPACKAGE is tuned for.</p>
+      </div>
+      <div class="type-grid" id="fileTypeTable"></div>
+    </section>
+
     <section class="section">
       <h3>Inputs</h3>
       <div class="grid">
@@ -166,6 +215,16 @@
     const progressText = document.getElementById('progressText');
     const resultsSection = document.getElementById('resultsSection');
     const topFiles = document.getElementById('topFiles');
+    const fileTypeTable = document.getElementById('fileTypeTable');
+    const statsSection = document.getElementById('statsSection');
+    const statRefs = {
+      files: document.getElementById('statFiles'),
+      size: document.getElementById('statSize'),
+      saved: document.getElementById('statSaved'),
+      savedHint: document.getElementById('statSavedHint'),
+      types: document.getElementById('statTypes'),
+      typesHint: document.getElementById('statTypesHint')
+    };
 
     let lastScan = null;
     let lastSavedScanId = null;
@@ -176,6 +235,51 @@
     const compressionSummary = document.getElementById('compressionSummary');
     const estText = document.getElementById('estText');
 
+    const FILE_TYPES = [
+      { label:'Photography', subtitle:'JPG / PNG / RAW stills', icon:'photo_camera', iconBg:'#4f46e5', bg:'linear-gradient(145deg,#111440,#1f2470)', badges:['.jpg','.jpeg','.png'] },
+      { label:'Video', subtitle:'Editorial cuts + proxies', icon:'movie', iconBg:'#f43f5e', bg:'linear-gradient(145deg,#1f0d22,#3c1438)', badges:['.mp4','.mov','.mkv'] },
+      { label:'Documents', subtitle:'Contracts & decks', icon:'description', iconBg:'#14b8a6', bg:'linear-gradient(145deg,#0b2226,#123d3d)', badges:['.pdf','.docx','.pptx'] },
+      { label:'Data files', subtitle:'Analytics exports', icon:'dataset', iconBg:'#0ea5e9', bg:'linear-gradient(145deg,#0a1f2e,#0d3e52)', badges:['.csv','.json','.xml'] },
+      { label:'Audio', subtitle:'VO and stems', icon:'music_note', iconBg:'#d946ef', bg:'linear-gradient(145deg,#301136,#4b174f)', badges:['.wav','.mp3','.aiff'] },
+      { label:'Design', subtitle:'Source artwork', icon:'brush', iconBg:'#f97316', bg:'linear-gradient(145deg,#2b1306,#46240b)', badges:['.psd','.ai','.svg'] },
+      { label:'Archives', subtitle:'Existing bundles', icon:'inventory_2', iconBg:'#22d3ee', bg:'linear-gradient(145deg,#082234,#0f3f56)', badges:['.zip','.7z','.gz'] },
+      { label:'Scripts & config', subtitle:'Infra + code', icon:'terminal', iconBg:'#a3e635', bg:'linear-gradient(145deg,#1c2b05,#2e4609)', badges:['.js','.ts','.py','.yml'] }
+    ];
+
+    function renderFileTypes(){
+      if(!fileTypeTable) return;
+      fileTypeTable.innerHTML = '';
+      for(const ft of FILE_TYPES){
+        const card = document.createElement('div');
+        card.className = 'type-card';
+        if(ft.bg) card.style.setProperty('--card-bg', ft.bg);
+        const icon = document.createElement('div');
+        icon.className = 'icon-chip';
+        icon.style.background = ft.iconBg;
+        icon.innerHTML = `<span class="material-symbols-outlined">${ft.icon}</span>`;
+        const title = document.createElement('div');
+        title.className = 'title';
+        title.textContent = ft.label;
+        const subtitle = document.createElement('div');
+        subtitle.className = 'subtitle';
+        subtitle.textContent = ft.subtitle;
+        const badges = document.createElement('div');
+        badges.className = 'badges';
+        (ft.badges||[]).forEach(b=>{
+          const badge = document.createElement('span');
+          badge.className = 'badge';
+          badge.textContent = b;
+          badges.appendChild(badge);
+        });
+        card.appendChild(icon);
+        card.appendChild(title);
+        card.appendChild(subtitle);
+        card.appendChild(badges);
+        fileTypeTable.appendChild(card);
+      }
+    }
+    renderFileTypes();
+
     function setSpinner(show){
       spinner.classList.toggle('hidden', !show);
     }
@@ -184,6 +288,37 @@
       const pct = total? Math.round((done/total)*100):0;
       progressBar.style.width = pct + '%';
       progressText.textContent = `${done} / ${total}`;
+    }
+
+    function updateStatsCards(info){
+      if(!statsSection) return;
+      if(!info || !info.fileCount){
+        statsSection.style.display='none';
+        return;
+      }
+      statsSection.style.display='';
+      const savedBytes = Math.max((info.est?.totalOrig || 0) - (info.est?.totalComp || 0), 0);
+      const savedPct = info.est?.totalOrig ? Math.round((savedBytes / info.est.totalOrig) * 100) : 0;
+      const uniqueTypes = info.extMap ? info.extMap.size : 0;
+      const topEntry = info.extMap ? Array.from(info.extMap.entries()).sort((a,b)=> (b[1].bytes||0)-(a[1].bytes||0))[0] : null;
+
+      if(statRefs.files) statRefs.files.textContent = info.fileCount.toLocaleString();
+      if(statRefs.size) statRefs.size.textContent = fmtBytes(info.totalBytes);
+      if(statRefs.saved) statRefs.saved.textContent = savedBytes ? fmtBytes(savedBytes) : '—';
+      if(statRefs.savedHint) statRefs.savedHint.textContent = savedBytes ? `${savedPct}% projected savings` : 'Run a scan to preview';
+      if(statRefs.types){
+        statRefs.types.textContent = uniqueTypes ? `${uniqueTypes} type${uniqueTypes===1?'':'s'}` : '0 types';
+      }
+      if(statRefs.typesHint){
+        if(topEntry){
+          const [ext, data] = topEntry;
+          const pct = info.totalBytes ? Math.round((data.bytes/info.totalBytes)*100) : 0;
+          const label = ext === '(no ext)' ? 'No extension' : ext.toUpperCase();
+          statRefs.typesHint.textContent = `${label} • ${data.count} files (${pct}%)`;
+        }else{
+          statRefs.typesHint.textContent = 'Awaiting scan';
+        }
+      }
     }
 
     // File System Access API helpers + IndexedDB persistence helpers
@@ -593,6 +728,7 @@
       folderPicker.value = '';
       resultsSection.style.display = 'none';
       progressArea.style.display = 'none';
+      if(statsSection) statsSection.style.display = 'none';
       lastScan = null;
     });
 
@@ -735,6 +871,8 @@
         const pct = est.totalOrig? Math.round((saved/est.totalOrig)*100):0;
         estText.textContent = `${fmtBytes(est.totalOrig)} → ${fmtBytes(est.totalComp)} (saved ${fmtBytes(saved)} — ${pct}%)`;
       }
+
+      updateStatsCards({ fileCount: fileInfos.length, totalBytes, est, extMap });
 
       resultsSection.style.display = '';
       lastScan = {extMap, totalBytes, fileInfos};

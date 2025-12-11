@@ -1,82 +1,65 @@
 :root{
-  /* Material 3 baseline color tokens (customize as needed) */
-  --md-sys-color-primary:#6750A4;
-  --md-sys-color-on-primary:#FFFFFF;
-  --md-sys-color-primary-container:#EADDFF;
-  --md-sys-color-on-primary-container:#21005D;
+  --md-sys-color-primary:#5d6bff;
+  --md-sys-color-on-primary:#0b0f27;
+  --md-sys-color-primary-container:#23245c;
+  --md-sys-color-on-primary-container:#e2e8ff;
 
-  --md-sys-color-secondary:#625B71;
-  --md-sys-color-on-secondary:#FFFFFF;
-  --md-sys-color-secondary-container:#E8DEF8;
-  --md-sys-color-on-secondary-container:#1D192B;
+  --md-sys-color-secondary:#131332;
+  --md-sys-color-on-secondary:#e9e6ff;
+  --md-sys-color-secondary-container:#231b4a;
+  --md-sys-color-on-secondary-container:#f3f1ff;
 
-  --md-sys-color-tertiary:#7D5260;
-  --md-sys-color-on-tertiary:#FFFFFF;
-  --md-sys-color-tertiary-container:#FFD8E4;
-  --md-sys-color-on-tertiary-container:#31111D;
+  --md-sys-color-tertiary:#ffa73b;
+  --md-sys-color-on-tertiary:#1f0b05;
+  --md-sys-color-tertiary-container:#412111;
+  --md-sys-color-on-tertiary-container:#ffe5c8;
 
-  --md-sys-color-error:#B3261E;
-  --md-sys-color-on-error:#FFFFFF;
-  --md-sys-color-background:#FFFBFE;
-  --md-sys-color-on-background:#1C1B1F;
-  --md-sys-color-surface:#FFFBFE;
-  --md-sys-color-on-surface:#1C1B1F;
-  --md-sys-color-outline:#79747E;
+  --md-sys-color-error:#ff7a7a;
+  --md-sys-color-on-error:#2e0505;
+  --md-sys-color-background:#07071a;
+  --md-sys-color-on-background:#f5f5ff;
+  --md-sys-color-surface:#141332;
+  --md-sys-color-on-surface:#e7e8ff;
+  --md-sys-color-outline:rgba(255,255,255,0.08);
 
-  /* Typography */
-  --md-ref-typeface-plain: Roboto, system-ui, -apple-system, Segoe UI, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
-  --md-sys-typescale-body-medium-size: 0.95rem;
-  --md-sys-typescale-title-medium-size: 1.05rem;
-
-  /* Density */
-  --md-sys-state-layer-opacity-hover: .08;
-  --md-sys-state-layer-opacity-pressed: .12;
+  --md-ref-typeface-plain:'Ubuntu','JetBrains Mono',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --md-sys-typescale-body-medium-size:0.95rem;
+  --md-sys-typescale-title-medium-size:1.1rem;
 }
 
 html,body{ height:100%; }
 body{
-  margin:0; padding:0; color:var(--md-sys-color-on-background);
-  background:var(--md-sys-color-background);
-  font-family: var(--md-ref-typeface-plain);
+  margin:0; padding:0;
+  color:var(--md-sys-color-on-background);
+  background:
+    radial-gradient(circle at 15% 15%, rgba(93,107,255,0.35), transparent 50%),
+    radial-gradient(circle at 80% 0%, rgba(255,167,59,0.15), transparent 45%),
+    #050515;
+  font-family:var(--md-ref-typeface-plain);
+  letter-spacing:0.01em;
 }
 
-/* Example theming for Material Web */
 :root{
-  --md-filled-button-container-color: var(--md-sys-color-primary);
-  --md-filled-button-label-text-color: var(--md-sys-color-on-primary);
-  --md-filled-text-field-container-color: var(--md-sys-color-surface);
-  --md-filled-text-field-input-text-color: var(--md-sys-color-on-surface);
+  --md-filled-button-container-color:var(--md-sys-color-primary);
+  --md-filled-button-label-text-color:var(--md-sys-color-on-primary);
+  --md-filled-text-field-container-color:var(--md-sys-color-surface);
+  --md-filled-text-field-input-text-color:var(--md-sys-color-on-surface);
 }
-/* Dark theme overrides when body has .dark */
+
 body.dark{
-  --md-sys-color-primary: #4450a2;
-  --md-sys-color-on-primary: #e6eef8;
-  --md-sys-color-primary-container: #1a2138;
-  --md-sys-color-on-primary-container: #e9ddff;
-
-  --md-sys-color-secondary: #6b7388;
-  --md-sys-color-on-secondary: #e6eef8;
-  --md-sys-color-secondary-container: #101420;
-  --md-sys-color-on-secondary-container: #eef2ff;
-
-  --md-sys-color-tertiary: #9aa4b2;
-  --md-sys-color-on-tertiary: #e6eef8;
-  --md-sys-color-tertiary-container: #141826;
-  --md-sys-color-on-tertiary-container: #fff0f6;
-
-  --md-sys-color-error:#ff8b8b;
-  --md-sys-color-on-error:#2b0000;
-  --md-sys-color-background:#071021; /* deep navy */
-  --md-sys-color-on-background:#e6eef8;
-  --md-sys-color-surface:#0b1420; /* card background */
-  --md-sys-color-on-surface:#dbe8ff;
-  --md-sys-color-outline: rgba(255,255,255,0.06);
-
-  --md-filled-button-container-color: #2b3a70;
-  --md-filled-button-label-text-color: #e6eef8;
-  --md-filled-text-field-container-color: var(--md-sys-color-surface);
-  --md-filled-text-field-input-text-color: var(--md-sys-color-on-surface);
+  --md-sys-color-primary:#8b9bff;
+  --md-sys-color-on-primary:#070b1b;
+  --md-sys-color-primary-container:#1b1d45;
+  --md-sys-color-on-primary-container:#f0f3ff;
+  --md-sys-color-secondary:#0b0c20;
+  --md-sys-color-on-secondary:#eaefff;
+  --md-sys-color-surface:#09091b;
+  --md-sys-color-on-surface:#dde4ff;
+  --md-sys-color-outline:rgba(255,255,255,0.15);
+  background:
+    radial-gradient(circle at 25% 0%, rgba(93,107,255,0.35), transparent 45%),
+    radial-gradient(circle at 90% 5%, rgba(16,185,129,0.2), transparent 40%),
+    #020310;
 }
 
-/* Smooth theme transitions */
-body, .section, .app-bar { transition: background-color 200ms ease, color 200ms ease, border-color 200ms ease; }
+body, .section, .app-bar{ transition: background-color 200ms ease, color 200ms ease, border-color 200ms ease; }

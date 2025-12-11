@@ -16,7 +16,7 @@
   "author": "",
   "license": "Apache-2.0",
   "dependencies": {
-    "electron": "^27.0.0",
+    "electron": "^27.3.12",
     "@mui/material": "^5.14.0",
     "@mui/icons-material": "^5.14.0",
     "@emotion/react": "^11.11.0",
