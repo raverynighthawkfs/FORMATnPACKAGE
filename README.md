@@ -1,6 +1,6 @@
 # FORMATnPACKAGE
 
-A Mac/PC NodeJS+Python GUI App that scans then optimizes files based on format/type. Saves it on a server, drive or folder of choice. Material UI icons, fonts and layouts.
+A Mac/PC NodeJS + Python app that scans, optimizes, and packages files based on format/type, saving them to the server, drive, or folder you choose. It ships with a Material UI preview for the Electron front end plus a fully working Python CLI backbone. See `WARP.md` for the full build/playbook notes.
 
 ## Features
 
@@ -22,6 +22,7 @@ A Mac/PC NodeJS+Python GUI App that scans then optimizes files based on format/t
 - **Node.js** (v14 or higher)
 - **Python 3** (3.7 or higher)
 - **Optional**: 7z command-line tool for 7z compression
+- **Optional**: `zstandard` Python package for zstd support (`pip install zstandard`)
 
 ## Installation
 
@@ -72,13 +73,27 @@ A Mac/PC NodeJS+Python GUI App that scans then optimizes files based on format/t
 - **Zstandard**: Modern compression algorithm with maximum level (22)
 - **7z**: If 7z CLI is installed on your PATH, it will be used with maximum compression (-mx9)
 
+## CLI Quick Start
+
+- PowerShell
+
+  ```powershell
+  python compression_backbone.py "<input_dir>" --out-dir "<output_dir>" --ext .tif .tiff .png .jpg .json .txt --workers 4 --algos zip gzip xz zstd 7z
+  ```
+
+- **Outputs**
+  - Per-algorithm files saved under `<out_dir>/<algo>/`
+  - `report.json` and `report.csv` in `<out_dir>` with per-file rows plus averages
+
+- **UI Preview**
+  - Static Material 3 mockup lives at `ui/preview/index.html`
+
 ## Development
 
-To modify the application:
-
 - **GUI**: Edit `src/index.html` for the interface
-- **Main Process**: Edit `src/main.js` for Electron backend
+- **Main Process**: Edit `src/main.js` for the Electron backend
 - **Compression Logic**: Edit `compress.py` for compression algorithms
+- **Python backbone**: Use `compression_backbone.py` for standalone CLI operation
 
 ## License
 
@@ -86,4 +101,4 @@ Apache License 2.0
 
 ## Weight Loss for your Files!
 
-This tool helps you find the best compression algorithm for your files, potentially saving significant storage space.
+This tool helps you find the best compression algorithm for your files, potentially saving significant storage space while giving you "weight loss" for both your mom's files and your own code.

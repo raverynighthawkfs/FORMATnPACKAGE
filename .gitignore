@@ -1,25 +1,39 @@
-# Dependencies
+# Dependencies / Node
 node_modules/
 package-lock.json
+electron-builder.yml
 
 # Python
 __pycache__/
 *.py[cod]
+*.pyo
+*.pyd
 *$py.class
 *.so
+*.egg-info/
 .Python
 env/
+.venv/
 venv/
 ENV/
 
-# Build
+# Build artifacts
 dist/
 build/
+tmp/
 *.app
 *.dmg
 *.exe
 
-# IDE
+# Tool outputs
+_compression_test/
+report.json
+report.csv
+output/
+compressed/
+test_files/
+
+# IDE / editor
 .vscode/
 .idea/
 *.swp
@@ -28,8 +42,3 @@ build/
 # OS
 .DS_Store
 Thumbs.db
-
-# Output/Test directories
-output/
-compressed/
-test_files/
