@@ -28,16 +28,21 @@
   </script>
 </head>
 <body>
-  <header class="app-bar">
-    <md-filled-icon-button id="menuBtn" appearance="outlined" title="Menu">
-      <span class="material-symbols-outlined" slot="icon">menu</span>
-    </md-filled-icon-button>
-    <span class="material-symbols-outlined">inventory_2</span>
-    <div class="app-title">FORMATnPACKAGE</div>
-    <div style="flex:1"></div>
-    <md-filled-icon-button id="themeToggle" title="Toggle dark mode" appearance="outlined">
-      <span class="material-symbols-outlined" slot="icon">dark_mode</span>
-    </md-filled-icon-button>
+  <header class="app-bar" id="appBar">
+    <div class="app-bar__side app-bar__side--left">
+      <md-filled-icon-button id="menuBtn" appearance="outlined" title="Menu">
+        <span class="material-symbols-outlined" slot="icon">menu</span>
+      </md-filled-icon-button>
+    </div>
+    <div class="app-bar__center">
+      <img src="logo-nighthawk.png" alt="Nighthawk Flight Systems, Inc." id="nighthawkLogo" />
+    </div>
+    <div class="app-bar__side app-bar__side--right">
+      <div class="app-title">Format-n-Package</div>
+      <md-filled-icon-button id="themeToggle" title="Toggle dark mode" appearance="outlined">
+        <span class="material-symbols-outlined" slot="icon">dark_mode</span>
+      </md-filled-icon-button>
+    </div>
   </header>
   <div class="instructions">
     <div class="note">
@@ -113,7 +118,7 @@
         </div>
       </div>
 
-      <div style="margin-top:1rem; display:flex; gap:.5rem; align-items:center;">
+      <div class="inputs-action-row" style="margin-top:1rem; display:flex; gap:.5rem; align-items:center;">
         <md-filled-button id="scanBtn">
           <span class="material-symbols-outlined" slot="icon">search</span>
           Scan
@@ -182,16 +187,30 @@
       </div>
     </section>
 
-    <div class="footer">This preview scans a selected folder in-browser (no server). Use the folder picker to choose files.</div>
   </main>
 
   <!-- Mobile bottom toolbar -->
   <div class="mobile-toolbar" id="mobileToolbar" aria-hidden="false">
-    <button id="mobileScanBtn" title="Scan" aria-label="Scan"><span class="material-symbols-outlined">search</span></button>
-    <button id="mobileChooseBtn" title="Choose folder" aria-label="Choose folder"><span class="material-symbols-outlined">folder_open</span></button>
-    <button id="mobileRunBtn" title="Run" aria-label="Run"><span class="material-symbols-outlined">play_arrow</span></button>
-    <button id="mobileClearBtn" title="Clear" aria-label="Clear"><span class="material-symbols-outlined">refresh</span></button>
-    <button id="mobileThemeBtn" title="Toggle theme" aria-label="Toggle theme"><span class="material-symbols-outlined">dark_mode</span></button>
+    <button id="mobileScanBtn" title="Scan" aria-label="Scan">
+      <span class="material-symbols-outlined">search</span>
+      <span class="toolbar-label">Scan</span>
+    </button>
+    <button id="mobileChooseBtn" title="Choose folder" aria-label="Choose folder">
+      <span class="material-symbols-outlined">folder_open</span>
+      <span class="toolbar-label">Folder</span>
+    </button>
+    <button id="mobileRunBtn" title="Run" aria-label="Run">
+      <span class="material-symbols-outlined">play_arrow</span>
+      <span class="toolbar-label">Run</span>
+    </button>
+    <button id="mobileClearBtn" title="Clear" aria-label="Clear">
+      <span class="material-symbols-outlined">refresh</span>
+      <span class="toolbar-label">Clear</span>
+    </button>
+    <button id="mobileSaveBtn" title="Save folder" aria-label="Save folder">
+      <span class="material-symbols-outlined" id="mobileSaveIcon">bookmark_add</span>
+      <span class="toolbar-label">Save</span>
+    </button>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -203,6 +222,22 @@
       const i=Math.floor(Math.log(bytes)/Math.log(1024));
       return (bytes/Math.pow(1024,i)).toFixed(i?1:0)+' '+sizes[i];
     }
+
+    const appBar = document.getElementById('appBar');
+    const nighthawkLogo = document.getElementById('nighthawkLogo');
+    const firstMainSection = document.querySelector('.container .section');
+
+    function handleAppBarScroll(){
+      if(!appBar || !nighthawkLogo || !firstMainSection) return;
+      const trigger = firstMainSection.offsetTop - 32;
+      if(window.scrollY > trigger){
+        appBar.classList.add('app-bar--scrolled');
+      } else {
+        appBar.classList.remove('app-bar--scrolled');
+      }
+    }
+    window.addEventListener('scroll', handleAppBarScroll, { passive: true });
+    handleAppBarScroll();
 
     const folderPicker = document.getElementById('folderPicker');
     const scanBtn = document.getElementById('scanBtn');
@@ -875,7 +910,11 @@
       updateStatsCards({ fileCount: fileInfos.length, totalBytes, est, extMap });
 
       resultsSection.style.display = '';
-      lastScan = {extMap, totalBytes, fileInfos};
+      const rootPath = (meta && meta.rootPath) ? meta.rootPath : (lastScan && lastScan.rootPath ? lastScan.rootPath : null);
+      lastScan = {extMap, totalBytes, fileInfos, rootPath};
+
+      // update save icon state after scan
+      try{ updateSaveButton(); }catch(e){}
 
       // Save a short scan record (does not store all File objects)
       try{
@@ -969,17 +1008,42 @@
           renderScans().catch(()=>{});
         });
       }
+      function updateSaveButton(){
+        const icon = document.getElementById('mobileSaveIcon');
+        if(!icon) return;
+        const saved = (function(){ try{ return localStorage.getItem('savedFolderPath') || ''; }catch(e){ return ''; } })();
+        const cur = (lastScan && lastScan.rootPath) ? lastScan.rootPath : '';
+        const isSaved = !!saved && !!cur && saved === cur;
+        icon.textContent = isSaved ? 'bookmark' : 'bookmark_add';
+        icon.style.fontVariationSettings = isSaved
+          ? "'FILL' 1,'wght' 500,'GRAD' 0,'opsz' 24"
+          : "'FILL' 0,'wght' 500,'GRAD' 0,'opsz' 24";
+      }
+
+      function toggleSaveFolder(){
+        const cur = (lastScan && lastScan.rootPath) ? lastScan.rootPath : '';
+        if(!cur){ alert('Choose a folder first, then Save.'); return; }
+        try{
+          const saved = localStorage.getItem('savedFolderPath') || '';
+          if(saved === cur) localStorage.removeItem('savedFolderPath');
+          else localStorage.setItem('savedFolderPath', cur);
+        }catch(e){}
+        updateSaveButton();
+      }
+
       // Wire mobile toolbar buttons
       const mobileScanBtn = document.getElementById('mobileScanBtn');
       const mobileChooseBtn = document.getElementById('mobileChooseBtn');
       const mobileRunBtn = document.getElementById('mobileRunBtn');
       const mobileClearBtn = document.getElementById('mobileClearBtn');
-      const mobileThemeBtn = document.getElementById('mobileThemeBtn');
+      const mobileSaveBtn = document.getElementById('mobileSaveBtn');
       if(mobileScanBtn) mobileScanBtn.addEventListener('click', ()=> scanBtn.click());
       if(mobileChooseBtn) mobileChooseBtn.addEventListener('click', ()=> chooseFolderBtn.click());
       if(mobileRunBtn) mobileRunBtn.addEventListener('click', ()=> runBtn.click());
       if(mobileClearBtn) mobileClearBtn.addEventListener('click', ()=> clearBtn.click());
-      if(mobileThemeBtn) mobileThemeBtn.addEventListener('click', ()=> themeToggle.click());
+      if(mobileSaveBtn) mobileSaveBtn.addEventListener('click', ()=> toggleSaveFolder());
+      updateSaveButton();
+
       const clearAllScansBtn = document.getElementById('clearAllScans');
       if(clearAllScansBtn){
         clearAllScansBtn.addEventListener('click', async ()=>{
